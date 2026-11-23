@@ -503,69 +503,69 @@ function opportunityHtml(p){
  </div>`;  
 }  
   
-
-/* HISTÓRICO DE NOVIDADES DO RADAR */
-async function loadRadarNoveltyCount(){
-  if(!currentUser)return;
-
-  const {count,error}=await db.from('radar_novidades')
-    .select('item_id',{count:'exact',head:true});
-
-  if(error){
-    console.error('Erro ao consultar novidades:',error);
-    if(isAdmin) message('appMessage','Erro ao atualizar novidades: '+error.message,'error');
-    return;
-  }
-
-  radarNoveltyCount=count||0;
-  $('countNew').textContent=radarNoveltyCount;
-}
-
-async function registerRadarNovelties(list,keyword){
-  if(!currentUser||!Array.isArray(list)||!list.length)return 0;
-
-  const unique=new Map();
-
-  list.forEach(p=>{
-    if(p.hasStableItemId&&p.itemId!==null&&p.itemId!==undefined&&String(p.itemId).trim()!==''){
-      unique.set(String(p.itemId),p);
-    }
-  });
-
-  const entries=[...unique.entries()];
-  if(!entries.length){
-    await loadRadarNoveltyCount();
-    return 0;
-  }
-
-  const ids=entries.map(([id])=>id);
-  const {data:existing,error:readError}=await db.from('radar_novidades')
-    .select('item_id').in('item_id',ids);
-
-  if(readError)throw new Error('Erro ao consultar histórico: '+readError.message);
-
-  const known=new Set((existing||[]).map(x=>String(x.item_id)));
-  const newProducts=entries.filter(([id])=>!known.has(id));
-
-  if(newProducts.length){
-    const rows=newProducts.map(([id,p])=>({
-      item_id:id,
-      product_name:p.nome||'Produto Shopee',
-      image_url:p.imagem_url||null,
-      first_search:keyword,
-      created_by:currentUser.id
-    }));
-
-    const {error:insertError}=await db.from('radar_novidades')
-      .upsert(rows,{onConflict:'item_id',ignoreDuplicates:true});
-
-    if(insertError)throw new Error('Erro ao registrar novidades: '+insertError.message);
-  }
-
-  await loadRadarNoveltyCount();
-  return newProducts.length;
-}
-
+/* HISTÓRICO DE NOVIDADES DO RADAR */  
+async function loadRadarNoveltyCount(){  
+ if(!currentUser)return;  
+  
+ const{count,error}=await db.from('radar_novidades')  
+  .select('item_id',{count:'exact',head:true});  
+  
+ if(error){  
+  console.error('Erro ao consultar novidades:',error);  
+   if(isAdmin)message('appMessage','Não foi possível atualizar o contador de novidades: '+error.message,'error');
+  return;  
+ }  
+  
+ radarNoveltyCount=count||0;  
+ $('countNew').textContent=radarNoveltyCount;  
+}  
+  
+async function registerRadarNovelties(list,keyword){  
+ if(!currentUser||!Array.isArray(list)||!list.length)return 0;  
+  
+ const unique=new Map();  
+  
+ list.forEach(p=>{  
+  if(p.hasStableItemId&&p.itemId!==null&&p.itemId!==undefined&&String(p.itemId).trim()!==''){  
+   unique.set(String(p.itemId),p);  
+  }  
+ });  
+  
+ const entries=[...unique.entries()];  
+ if(!entries.length){  
+  await loadRadarNoveltyCount();  
+  return 0;  
+ }  
+  
+ const ids=entries.map(([id])=>id);  
+ const{data:existing,error:readError}=await db.from('radar_novidades')  
+  .select('item_id')  
+  .in('item_id',ids);  
+  
+ if(readError)throw new Error('Erro ao consultar histórico: '+readError.message);  
+  
+ const known=new Set((existing||[]).map(x=>String(x.item_id)));  
+ const newProducts=entries.filter(([id])=>!known.has(id));  
+  
+ if(newProducts.length){  
+  const rows=newProducts.map(([id,p])=>({  
+   item_id:id,  
+   product_name:p.nome||'Produto Shopee',  
+   image_url:p.imagem_url||null,  
+   first_search:keyword,  
+   created_by:currentUser.id  
+  }));  
+  
+  const{error:insertError}=await db.from('radar_novidades')  
+   .upsert(rows,{onConflict:'item_id',ignoreDuplicates:true});  
+  
+  if(insertError)throw new Error('Erro ao registrar novidades: '+insertError.message);  
+ }  
+  
+ await loadRadarNoveltyCount();  
+ return newProducts.length;  
+}  
+  
 /* AUTENTICAÇÃO */
 async function signUp(){
   const email=$('authEmail').value.trim();
@@ -750,8 +750,7 @@ async function loadProducts(){
  renderProducts();
  renderTrialShowcase();
  if($("zeroSalesList"))loadZeroSalesProducts();
-}
-}
+}  
   
 /* NORMALIZAÇÃO DOS RESULTADOS DA SHOPEE */  
 function normalizeShopeeProduct(p,index=0){  
@@ -773,8 +772,7 @@ function normalizeShopeeProduct(p,index=0){
  let description='Oferta encontrada na Shopee • Loja: '+shopName;  
  if(commissionRate!==null&&commissionRate!==''){  
   description+=' • Taxa de comissão informada: '+commissionRate+'%';  
- }  if($("zeroSalesList"))loadZeroSalesProducts();
-}
+ }  
   
  return{  
   id:'shopee-'+String(itemId),  
@@ -1155,18 +1153,7 @@ function renderOther(){
   $('trendList').innerHTML=allTrends.length?allTrends.map(productCard).join(''):'<div class="empty">Ainda não há produtos com vendas ou tendência informada.</div>';
  }
  if(isAdmin){
-  $('adminList').innerHTML=manualProducts.map(p=>{
-   const id=String(p.id).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
-   return `<div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:8px 0"><span>${esc(p.nome)}</span><span><button class="soft" onclick="editProduct('${id}')">Editar</button><button class="danger" onclick="deleteProduct('${id}')">Excluir</button></span></div>`;
-  }).join('')||'Nenhum produto manual cadastrado.';
- }
- renderTrialShowcase();
-}
-
-function clearFilters(){  
- $('q').value='';  
- $('commission').value='all';  
- $('competition').value='all';
+  $('adminList').innerH
 
 
 
