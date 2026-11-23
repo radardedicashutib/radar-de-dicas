@@ -1468,4 +1468,116 @@ function renderTrialShowcase(){
     .slice(0, 5);
 
   const low=source
-    .filter(p=>Number(p.concorrencia)>0&&Number(p.concorrencia)
+    .filter(p=>Number(p.concorrencia)>0&&Number(p.concorrencia)<10)
+    .sort((a,b)=>Number(a.concorrencia)-Number(b.concorrencia));
+
+  if($('bestList')){
+    $('bestList').innerHTML=top.length
+      ?top.map(productCard).join('')
+      :'<div class="empty">Nenhum produto cadastrado.</div>';
+  }
+
+  if($('trendList')){
+    $('trendList').innerHTML=hot.length
+      ?hot.map(productCard).join('')
+      :'<div class="empty">Nenhum produto marcado como Em alta.</div>';
+  }
+
+  if($('weeklyRecommendations')){
+    $('weeklyRecommendations').innerHTML=top.length
+      ?top.slice(0,1).map(p=>`
+        <div class="recommendation-item">
+          ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}
+          <strong>${esc(p.nome)}</strong>
+          <small>Exemplo de postagem</small>
+          <p class="muted">Demonstração cadastrada pelo administrador.</p>
+        </div>
+      `).join('')
+      :'<div class="empty">Nenhum produto demonstrativo cadastrado.</div>';
+  }
+}
+
+/* LINKS SALVOS */
+function renderSaved(){
+  const el=$('savedList');
+  if(!el)return;
+
+  el.innerHTML=(!isAdmin&&!hasPaidMembership)
+    ?'<div class="empty">Links salvos — disponível para assinantes pagos.</div>'
+    :saved.length?saved.map(s=>`
+      <div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:9px 0">
+        <div>
+          <b>${esc(s.titulo)}</b>
+          <div class="muted" style="font-size:12px;word-break:break-all">${esc(s.url)}</div>
+        </div>
+        <div>
+          <button class="primary" onclick="window.open('${esc(s.url)}','_blank','noopener,noreferrer')">Abrir</button>
+          <button class="danger" onclick="removeSaved('${s.id}')">Remover</button>
+        </div>
+      </div>
+    `).join('')
+    :'<div class="empty">Você ainda não salvou links.</div>';
+}
+
+async function loadSaved(){
+  if(!currentUser)return;
+
+  const {data,error}=await db.from('links_salvos')
+    .select('*')
+    .eq('user_id',currentUser.id)
+    .order('criado_em',{ascending:false});
+
+  if(error){
+    console.error('Erro ao carregar links salvos:',error);
+    saved=[];
+  }else{
+    saved=data||[];
+  }
+
+  updateStats();
+  renderSaved();
+}
+/* INDICADORES DO PAINEL */
+function updateStats(){
+  if(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)return;
+
+  const total=products||[];
+
+  const set=(id,value)=>{
+    const el=$(id);
+    if(el)el.textContent=value;
+  };
+
+  set('countProducts',total.length);
+
+  set('countHigh',total.filter(p=>
+    Number(p.taxa_comissao||p.taxaComissao||0)>20
+  ).length);
+
+  set('countNew',radarNoveltyCount||0);
+
+  set('countChampions',total.filter(p=>
+    Number(p.vendas||0)>0
+  ).length);
+}
+ async function initializeRadar(){
+ try{
+  const{data:{session},error}=await db.auth.getSession();
+  if(error)throw error;
+  if(session){
+   await handleSession(session);
+  }else{
+   $('authPanel').classList.remove('hidden');
+   $('appArea').classList.add('hidden');
+  }
+ }catch(error){
+  console.error('Erro ao iniciar o Radar:',error);
+  message('authMessage','Não foi possível conectar ao sistema: '+error.message,'error');
+ }
+}
+
+initializeRadar();
+
+</script>
+</body>
+ </html>
