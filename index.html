@@ -1422,8 +1422,10 @@ function renderTrialShowcase(){
 
   const commission=source
     .filter(p=>Number(p.taxa_comissao??p.taxaComissao)>20)
-    .sort((a,b)=>(Number(b.taxa_comissao??b.taxaComissao||0))-
-                   (Number(a.taxa_comissao??a.taxaComissao||0)))
+    .sort((a,b)=>
+  Number((b.taxa_comissao ?? b.taxaComissao) || 0) -
+  Number((a.taxa_comissao ?? a.taxaComissao) || 0)
+)
     .slice(0,5);
 
   const low=source
