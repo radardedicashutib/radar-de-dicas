@@ -711,3 +711,676 @@ async function searchShopee(){
   button.textContent='🔎 BUSCAR NA SHOPEE';
  }
 }
+/* PARTE 5 — CONTINUAÇÃO DO RADAR DE DICAS */
+
+/* ÍNDICE DE OPORTUNIDADE */
+function calculateOpportunityScores(list){
+ (list||[]).forEach(p=>{
+  const commission=numericValue(p.taxaComissao);
+  const sales=numericValue(p.vendas);
+  const rating=numericValue(p.avaliacao);
+  p.opportunityScore=Math.min(100,Math.round(
+   Math.min(commission,30)*1.5+
+   Math.min(sales,5000)/5000*35+
+   (rating?Math.min(rating,5)*5:10)
+  ));
+ });
+}
+
+function opportunityHtml(p){
+ const score=Number(p.opportunityScore)||0;
+ return `<div class="opportunity">
+  <div class="opportunity-top">
+   <b>ÍNDICE DE OPORTUNIDADE</b>
+   <span class="opportunity-score">${score}/100</span>
+  </div>
+  <div class="opportunity-track">
+   <div class="opportunity-fill" style="width:${score}%"></div>
+  </div>
+  <div class="opportunity-note">Estimativa baseada nos dados disponíveis. Não garante vendas.</div>
+ </div>`;
+}
+
+function competitionLevel(value){
+ const n=numericValue(value);
+ if(value===null||value===undefined||value==='')return 'Não informada';
+ if(n<=20)return 'Baixa';
+ if(n<=100)return 'Média';
+ return 'Alta';
+}
+
+/* FILTROS */
+function clearFilters(){
+ $('q').value='';
+ $('commission').value='all';
+ $('competition').value='all';
+ $('category').value='all';
+ renderProducts();
+}
+
+/* PRODUTOS SEM VENDAS */
+async function loadZeroSalesProducts(){
+ const zero=$('zeroSalesList');
+ const unknown=$('unknownSalesList');
+ if(!zero||!unknown)return;
+
+ const list=products.filter(p=>p.origem==='manual');
+ const noSales=list.filter(p=>p.vendas!==null&&p.vendas!==undefined&&Number(p.vendas)===0);
+ const unknownSales=list.filter(p=>p.vendas===null||p.vendas===undefined||p.vendas==='');
+
+ zero.innerHTML=noSales.length
+  ?noSales.map(productCard).join('')
+  :'<div class="empty">Nenhum produto com zero vendas informado.</div>';
+
+ unknown.innerHTML=unknownSales.length
+  ?unknownSales.map(productCard).join('')
+  :'<div class="empty">Nenhum produto aguardando sincronização.</div>';
+}
+
+/* LISTAS */
+function renderBest(){
+ const list=[...products].sort((a,b)=>(Number(b.vendas)||0)-(Number(a.vendas)||0));
+ $('bestList').innerHTML=list.length
+  ?list.map(productCard).join('')
+  :'<div class="empty">Nenhum produto cadastrado.</div>';
+}
+
+function renderTrends(){
+ const list=products.filter(p=>
+  String(p.tendencia||'').toLowerCase()==='em alta'
+ );
+ $('trendList').innerHTML=list.length
+  ?list.map(productCard).join('')
+  :'<div class="empty">Nenhum produto marcado como em alta.</div>';
+}
+
+function renderSaved(){
+ const el=$('savedList');
+ if(!el)return;
+ el.innerHTML=saved.length
+  ?saved.map(p=>`
+   <div class="content-card">
+    <h3>${esc(p.nome||'Produto salvo')}</h3>
+    <p>${esc(p.link_produto||p.link_afiliado||'')}</p>
+    <div class="row">
+     <button class="primary" onclick="window.open('${esc(p.link_produto||p.link_afiliado||'#')}','_blank')">Abrir link</button>
+     <button class="danger" onclick="removeSaved('${esc(p.id)}')">Remover</button>
+    </div>
+   </div>`).join('')
+  :'<div class="empty">Você ainda não salvou nenhum link.</div>';
+}
+
+async function toggleSave(id){
+ if(!currentUser)return;
+ const p=products.find(x=>String(x.id)===String(id));
+ if(!p)return;
+
+ const exists=saved.find(x=>String(x.produto_id)===String(id));
+ if(exists){
+  await removeSaved(exists.id);
+  return;
+ }
+
+ const{data,error}=await db.from('links_salvos').insert({
+  user_id:currentUser.id,
+  produto_id:p.id,
+  nome:p.nome,
+  link_produto:p.link_produto||p.link_afiliado
+ }).select().single();
+
+ if(error){
+  message('appMessage','Não foi possível salvar: '+error.message,'error');
+  return;
+ }
+ saved.unshift(data);
+ renderSaved();
+ message('appMessage','Link salvo com sucesso.','ok');
+}
+
+async function removeSaved(id){
+ const{error}=await db.from('links_salvos').delete()
+  .eq('id',id).eq('user_id',currentUser.id);
+ if(error){
+  message('appMessage','Erro ao remover link: '+error.message,'error');
+  return;
+ }
+ saved=saved.filter(x=>String(x.id)!==String(id));
+ renderSaved();
+}
+
+function openLink(id){
+ const p=products.find(x=>String(x.id)===String(id));
+ const url=p?.link_afiliado||p?.link_produto;
+ if(url)window.open(url,'_blank','noopener');
+}
+
+async function shareProduct(id){
+ const p=products.find(x=>String(x.id)===String(id));
+ if(!p)return;
+ const url=p.link_afiliado||p.link_produto||location.href;
+ const text=p.nome+'\n'+url;
+ if(navigator.share){
+  try{await navigator.share({title:p.nome,text,url});}catch(e){}
+ }else{
+  await navigator.clipboard.writeText(text);
+  alert('Link copiado!');
+ }
+}
+
+/* PAINEL */
+function openDashboardCard(type){
+ if(type==='produtos')showTab('radar');
+ if(type==='comissao')showTab('radar');
+ if(type==='semvendas')showTab('semvendas');
+ if(type==='mais_vende')showTab('mais');
+}
+
+function renderDashboard(){
+ renderProducts();
+ renderSaved();
+ updateStats();
+}
+
+/* CADASTRO DE PRODUTOS */
+async function saveProduct(event){
+ event.preventDefault();
+ if(!isAdmin)return;
+
+ const id=$('editId').value;
+ const payload={
+  nome:$('pname').value.trim(),
+  categoria:$('pcat').value,
+  descricao:$('pdesc').value.trim(),
+  preco:numericValue($('pprice').value),
+  comissao:numericValue($('pcommission').value),
+  taxa_comissao:numericValue($('pcommissionRate').value),
+  vendas:numericValue($('psales').value),
+  concorrencia:numericValue($('paffiliates').value),
+  tendencia:$('ptrend').value,
+  imagem_url:$('pimage').value.trim(),
+  link_produto:$('plink').value.trim(),
+  link_afiliado:$('paffiliate').value.trim(),
+  shop_id:$('pshopId').value.trim()||null,
+  item_id:$('pitemId').value.trim()||null,
+  ativo:true
+ };
+
+ let result;
+ if(id){
+  result=await db.from('produtos').update(payload).eq('id',id);
+ }else{
+  result=await db.from('produtos').insert(payload);
+ }
+
+ if(result.error){
+  alert('Erro ao salvar produto: '+result.error.message);
+  return;
+ }
+
+ clearProductForm();
+ await loadProducts();
+ alert('Produto salvo com sucesso!');
+}
+
+function clearProductForm(){
+ $('productForm').reset();
+ $('editId').value='';
+ $('pshopId').value='';
+ $('pitemId').value='';
+}
+
+function editProduct(id){
+ const p=manualProducts.find(x=>String(x.id)===String(id));
+ if(!p)return;
+
+ $('editId').value=p.id;
+ $('pname').value=p.nome||'';
+ $('pcat').value=p.categoria||'Outros';
+ $('pdesc').value=p.descricao||'';
+ $('pprice').value=p.preco||'';
+ $('pcommission').value=p.comissao||'';
+ $('pcommissionRate').value=p.taxa_comissao??p.taxaComissao??'';
+ $('psales').value=p.vendas??'';
+ $('paffiliates').value=p.concorrencia??'';
+ $('ptrend').value=p.tendencia||'Sem informação';
+ $('pimage').value=p.imagem_url||'';
+ $('plink').value=p.link_produto||'';
+ $('paffiliate').value=p.link_afiliado||'';
+ $('pshopId').value=p.shop_id||'';
+ $('pitemId').value=p.item_id||'';
+ showTab('admin');
+ $('productForm').scrollIntoView({behavior:'smooth'});
+}
+
+async function deleteProduct(id){
+ if(!isAdmin||!confirm('Deseja excluir este produto?'))return;
+ const{error}=await db.from('produtos').delete().eq('id',id);
+ if(error){alert('Erro ao excluir: '+error.message);return;}
+ await loadProducts();
+}
+
+/* CONTEÚDO PÚBLICO E BIBLIOTECAS */
+async function loadPublicContent(){
+ await loadPaidLibraries();
+}
+
+async function loadPaidLibraries(){
+ if(!currentUser)return;
+ await loadPrompts();
+ await loadTutorials();
+}
+
+async function loadPrompts(){
+ const{data,error}=await db.from('radar_prompts').select('*').order('criado_em',{ascending:false});
+ if(error){
+  console.warn('Biblioteca de prompts:',error.message);
+  return;
+ }
+ promptRows=data||[];
+ renderPrompts();
+}
+
+async function loadTutorials(){
+ const{data,error}=await db.from('radar_tutoriais').select('*').order('ordem',{ascending:true});
+ if(error){
+  console.warn('Biblioteca de vídeos:',error.message);
+  return;
+ }
+ tutorialRows=data||[];
+ renderTutorials();
+}
+
+function renderPrompts(){
+ const allowed=isAdmin||hasPaidMembership;
+ const html=allowed?promptRows.map(p=>`
+  <div class="content-card">
+   <span class="pill">${esc(p.categoria||'Prompt')}</span>
+   <h3>${esc(p.titulo||p.nome||'Prompt')}</h3>
+   <pre>${esc(p.conteudo||p.prompt||'')}</pre>
+   <button class="soft" onclick="navigator.clipboard.writeText(${JSON.stringify(p.conteudo||p.prompt||'')}).then(()=>alert('Prompt copiado!'))">Copiar prompt</button>
+   ${isAdmin?`<button class="danger" onclick="deletePrompt('${p.id}')">Excluir</button>`:''}
+  </div>`).join(''):'<div class="empty">🔒 Biblioteca exclusiva para assinantes pagos.</div>';
+
+ $('promptsAccess').innerHTML=html||'<div class="empty">Nenhum prompt cadastrado.</div>';
+}
+
+function renderTutorials(){
+ const allowed=isAdmin||hasPaidMembership;
+ const html=allowed?tutorialRows.map(p=>`
+  <div class="content-card">
+   <h3>${esc(p.titulo||'Vídeo')}</h3>
+   <p>${esc(p.descricao||'')}</p>
+   ${p.video_url?`<video controls playsinline src="${esc(p.video_url)}"></video>`:''}
+   ${isAdmin?`<button class="danger" onclick="deleteTutorial('${p.id}')">Excluir</button>`:''}
+  </div>`).join(''):'<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';
+
+ $('tutorialsAccess').innerHTML=html||'<div class="empty">Nenhum tutorial cadastrado.</div>';
+}
+
+/* ADMINISTRAÇÃO DE PROMPTS */
+async function savePrompt(event){
+ event.preventDefault();
+ if(!isAdmin)return;
+
+ const id=$('promptEditId').value;
+ const payload={
+  titulo:$('promptTitle').value.trim(),
+  categoria:$('promptCategory').value.trim(),
+  conteudo:$('promptContent').value.trim()
+ };
+
+ const result=id
+  ?await db.from('radar_prompts').update(payload).eq('id',id)
+  :await db.from('radar_prompts').insert(payload);
+
+ if(result.error){alert(result.error.message);return;}
+ clearPromptForm();
+ await loadPrompts();
+}
+
+function clearPromptForm(){
+ $('promptForm').reset();
+ $('promptEditId').value='';
+}
+
+async function deletePrompt(id){
+ if(!isAdmin||!confirm('Excluir este prompt?'))return;
+ const{error}=await db.from('radar_prompts').delete().eq('id',id);
+ if(error){alert(error.message);return;}
+ await loadPrompts();
+}
+
+/* ADMINISTRAÇÃO DE TUTORIAIS */
+async function saveTutorial(event){
+ event.preventDefault();
+ if(!isAdmin)return;
+
+ const file=$('tutorialFile').files[0];
+ let videoUrl='';
+
+ if(file){
+  const path=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
+  if(error){alert('Erro no envio do vídeo: '+error.message);return;}
+  videoUrl=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
+ }
+
+ const id=$('tutorialEditId').value;
+ const payload={
+  titulo:$('tutorialTitle').value.trim(),
+  ordem:numericValue($('tutorialOrder').value),
+  descricao:$('tutorialDescription').value.trim()
+ };
+ if(videoUrl)payload.video_url=videoUrl;
+
+ const result=id
+  ?await db.from('radar_tutoriais').update(payload).eq('id',id)
+  :await db.from('radar_tutoriais').insert(payload);
+
+ if(result.error){alert(result.error.message);return;}
+ clearTutorialForm();
+ await loadTutorials();
+}
+
+function clearTutorialForm(){
+ $('tutorialForm').reset();
+ $('tutorialEditId').value='';
+}
+
+async function deleteTutorial(id){
+ if(!isAdmin||!confirm('Excluir este vídeo?'))return;
+ const{error}=await db.from('radar_tutoriais').delete().eq('id',id);
+ if(error){alert(error.message);return;}
+ await loadTutorials();
+}
+
+/* SOLICITAÇÕES DE PLANO */
+async function requestPlan(plan){
+ if(!currentUser){
+  showTab('planos');
+  message('authMessage','Entre ou crie uma conta antes de solicitar um plano.','error');
+  $('authPanel').scrollIntoView({behavior:'smooth'});
+  return;
+ }
+
+ const{error}=await db.from('radar_solicitacoes').insert({
+  user_id:currentUser.id,
+  email:currentUser.email,
+  plano:plan,
+  status:'pendente'
+ });
+
+ if(error){
+  $('planStatus').style.display='block';
+  $('planStatus').textContent='Não foi possível registrar a solicitação: '+error.message;
+  return;
+ }
+
+ $('planStatus').style.display='block';
+ $('planStatus').textContent='Solicitação registrada. Aguarde as instruções de pagamento.';
+}
+
+async function loadAdminRequests(){
+ if(!isAdmin)return;
+ const el=$('adminRequests');
+ if(!el)return;
+
+ const{data,error}=await db.from('radar_solicitacoes').select('*').order('created_at',{ascending:false});
+ if(error){
+  el.textContent='Não foi possível carregar solicitações: '+error.message;
+  return;
+ }
+
+ el.innerHTML=(data||[]).map(x=>`
+  <div class="content-card">
+   <b>${esc(x.email||x.user_id)}</b>
+   <p>Plano: ${esc(x.plano)} • Status: ${esc(x.status)}</p>
+  </div>`).join('')||'<div class="empty">Nenhuma solicitação encontrada.</div>';
+}
+
+async function loadAdminData(){
+ if(!isAdmin)return;
+ await loadProducts();
+ await loadPrompts();
+ await loadTutorials();
+ await loadAdminRequests();
+}
+
+/* VÍDEO PRINCIPAL */
+async function loadVideo(){
+ if(!isAdmin)return;
+ const file=$('videoFile').files[0];
+ if(!file){message('videoMessage','Selecione um vídeo primeiro.','error');return;}
+
+ message('videoMessage','Enviando vídeo...');
+ const path='principal-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+ const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
+ if(error){message('videoMessage','Erro: '+error.message,'error');return;}
+
+ const url=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
+ const{error:saveError}=await db.from('radar_config').upsert({
+  chave:'video_principal',
+  valor:url
+ },{onConflict:'chave'});
+
+ if(saveError){message('videoMessage','Vídeo enviado, mas não foi possível salvar o endereço: '+saveError.message,'error');return;}
+ message('videoMessage','Vídeo publicado com sucesso!','ok');
+ await loadSharedVideo();
+}
+
+async function removeVideo(){
+ if(!isAdmin||!confirm('Remover o vídeo publicado?'))return;
+ const{error}=await db.from('radar_config').delete().eq('chave','video_principal');
+ if(error){message('videoMessage',error.message,'error');return;}
+ await loadSharedVideo();
+}
+
+async function loadSharedVideo(){
+ const{data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
+ if(error||!data?.valor){showVideoPlaceholder();return;}
+ displaySharedVideo(data.valor);
+}
+
+function showVideoPlaceholder(){
+ $('videoPreview').innerHTML='<div class="video-placeholder">O vídeo aparecerá aqui quando for publicado.</div>';
+ $('heroVideo').innerHTML='<div class="video-placeholder">▶<b>10 DICAS PARA VENDER MAIS</b><small>Vídeo ainda não publicado.</small></div>';
+}
+
+function displaySharedVideo(url){
+ const safe=esc(url);
+ $('videoPreview').innerHTML=`<video controls playsinline src="${safe}"></video>`;
+ $('heroVideo').innerHTML=`<video controls playsinline src="${safe}"></video>`;
+}
+
+/* COMPARTILHAR RADAR */
+async function shareRadar(){
+ if(navigator.share){
+  try{await navigator.share({title:'RADAR DE DICAS',url:location.href});}catch(e){}
+ }else{
+  await copyRadarLink();
+ }
+}
+
+async function copyRadarLink(){
+ try{
+  await navigator.clipboard.writeText(location.href);
+  alert('Link copiado!');
+ }catch(e){
+  prompt('Copie o endereço do Radar:',location.href);
+ }
+}
+
+/* SALLES IA — DADOS LOCAIS */
+let sallesProducts=[];
+let sallesKeywords=[];
+let sallesAds=[];
+let sallesFunnel=[];
+
+function loadSallesLocal(){
+ try{
+  sallesProducts=JSON.parse(localStorage.getItem('sallesProducts')||'[]');
+  sallesKeywords=JSON.parse(localStorage.getItem('sallesKeywords')||'[]');
+  sallesAds=JSON.parse(localStorage.getItem('sallesAds')||'[]');
+  sallesFunnel=JSON.parse(localStorage.getItem('sallesFunnel')||'[]');
+ }catch(e){}
+}
+
+function saveSallesLocal(){
+ localStorage.setItem('sallesProducts',JSON.stringify(sallesProducts));
+ localStorage.setItem('sallesKeywords',JSON.stringify(sallesKeywords));
+ localStorage.setItem('sallesAds',JSON.stringify(sallesAds));
+ localStorage.setItem('sallesFunnel',JSON.stringify(sallesFunnel));
+}
+
+function renderSalles(){
+ if(!isAdmin&&!hasPaidMembership)return;
+ loadSallesLocal();
+
+ $('sallesProductCount').textContent=sallesProducts.length;
+ const avg=sallesProducts.length?sallesProducts.reduce((s,p)=>s+p.commission,0)/sallesProducts.length:0;
+ $('sallesAvgCommission').textContent=money(avg);
+ $('sallesLowCompetition').textContent=sallesProducts.filter(p=>p.competition<=20).length;
+
+ const roas=sallesAds.length?sallesAds.reduce((s,a)=>s+a.roas,0)/sallesAds.length:0;
+ $('sallesAdRoas').textContent=sallesAds.length?roas.toFixed(2)+'x':'—';
+
+ $('sallesProductList').innerHTML=sallesProducts.map(p=>`
+  <div class="content-card"><h3>${esc(p.name)}</h3>
+  <p>Preço: ${money(p.price)} • Vendas: ${p.sales}</p>
+  <p>Comissão: ${money(p.commission)} • Concorrentes: ${p.competition}</p>
+  ${p.url?`<a href="${esc(p.url)}" target="_blank" rel="noopener">Abrir produto</a>`:''}</div>`).join('')||'<div class="empty">Cadastre seu primeiro produto.</div>';
+
+ $('sallesRadar360').innerHTML=sallesProducts.map(p=>`
+  <div class="content-card"><b>${esc(p.name)}</b><p>Concorrência: ${p.competition}</p><p>Vendas: ${p.sales}</p></div>`).join('')||'<div class="empty">Sem dados para comparar.</div>';
+
+ $('sallesKeywordList').innerHTML=sallesKeywords.map(p=>`
+  <div class="content-card"><b>${esc(p.term)}</b><p>Volume: ${p.volume} • Concorrência: ${esc(p.competition)}</p></div>`).join('');
+
+ $('sallesAdsList').innerHTML=sallesAds.map(p=>`
+  <div class="content-card"><b>${esc(p.name)}</b><p>Investimento: ${money(p.spend)}</p><p>Receita: ${money(p.revenue)} • ROAS: ${p.roas.toFixed(2)}x • ACOS: ${p.acos.toFixed(2)}%</p></div>`).join('');
+
+ $('sfProduct').innerHTML=sallesProducts.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('');
+ $('sallesFunnelList').innerHTML=sallesFunnel.map(p=>`
+  <div class="content-card"><b>${esc(p.name)}</b><p>Etapa: ${esc(p.stage)}</p></div>`).join('');
+
+ $('sallesReport').innerHTML=`<p>Produtos analisados: ${sallesProducts.length}</p><p>Palavras-chave: ${sallesKeywords.length}</p><p>Campanhas: ${sallesAds.length}</p>`;
+}
+
+function saveSallesProduct(event){
+ event.preventDefault();
+ sallesProducts.push({
+  id:Date.now(),
+  name:$('spName').value.trim(),
+  url:$('spUrl').value.trim(),
+  price:numericValue($('spPrice').value),
+  sales:numericValue($('spSales').value),
+  commission:numericValue($('spCommission').value),
+  competition:numericValue($('spCompetition').value)
+ });
+ saveSallesLocal();
+ $('sallesProductForm').reset();
+ renderSalles();
+}
+
+function resetSallesProductForm(){
+ $('sallesProductForm').reset();
+}
+
+function saveSallesKeyword(event){
+ event.preventDefault();
+ sallesKeywords.push({
+  term:$('skTerm').value.trim(),
+  volume:numericValue($('skVolume').value),
+  competition:$('skCompetition').value
+ });
+ saveSallesLocal();
+ $('sallesKeywordForm').reset();
+ renderSalles();
+}
+
+function saveSallesAds(event){
+ event.preventDefault();
+ const spend=numericValue($('saSpend').value);
+ const revenue=numericValue($('saRevenue').value);
+ sallesAds.push({
+  name:$('saName').value.trim(),
+  spend,revenue,
+  clicks:numericValue($('saClicks').value),
+  orders:numericValue($('saOrders').value),
+  roas:spend?revenue/spend:0,
+  acos:revenue?spend/revenue*100:0
+ });
+ saveSallesLocal();
+ $('sallesAdsForm').reset();
+ renderSalles();
+}
+
+function saveSallesFunnel(){
+ const id=$('sfProduct').value;
+ const p=sallesProducts.find(x=>String(x.id)===String(id));
+ if(!p)return;
+ sallesFunnel=sallesFunnel.filter(x=>String(x.id)!==String(id));
+ sallesFunnel.push({id:p.id,name:p.name,stage:$('sfStage').value});
+ saveSallesLocal();
+ renderSalles();
+}
+
+function exportSallesReport(){
+ const rows=[['Produto','Preço','Vendas','Comissão','Concorrência'],
+  ...sallesProducts.map(p=>[p.name,p.price,p.sales,p.commission,p.competition])];
+ const csv=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\n');
+ const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'});
+ const a=document.createElement('a');
+ a.href=URL.createObjectURL(blob);
+ a.download='relatorio-salles.csv';
+ a.click();
+ URL.revokeObjectURL(a.href);
+}
+
+function clearSallesData(){
+ if(!confirm('Apagar todos os dados locais do Salles?'))return;
+ sallesProducts=[];
+ sallesKeywords=[];
+ sallesAds=[];
+ sallesFunnel=[];
+ saveSallesLocal();
+ renderSalles();
+}
+
+/* INICIALIZAÇÃO E LOGIN */
+db.auth.onAuthStateChange((event,session)=>{
+ if(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'){
+  setTimeout(()=>handleSession(session),0);
+ }
+ if(event==='SIGNED_OUT'){
+  currentUser=null;
+  isAdmin=false;
+  hasActiveMembership=false;
+  hasPaidMembership=false;
+  hasTrialAccess=false;
+  $('authPanel').classList.remove('hidden');
+  $('appArea').classList.add('hidden');
+ }
+});
+
+async function initializeRadar(){
+ try{
+  const{data:{session},error}=await db.auth.getSession();
+  if(error)throw error;
+  if(session){
+   await handleSession(session);
+  }else{
+   $('authPanel').classList.remove('hidden');
+   $('appArea').classList.add('hidden');
+  }
+ }catch(error){
+  console.error('Erro ao iniciar o Radar:',error);
+  message('authMessage','Não foi possível conectar ao sistema: '+error.message,'error');
+ }
+}
+
+initializeRadar();
+
+</script>
+</body>
+</html>
