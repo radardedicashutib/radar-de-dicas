@@ -629,45 +629,22 @@ async function signIn(){
 
   
 
-async function signUp(){  
- const email=$('authEmail').value.trim();  
- const password=$('authPassword').value;  
- if(!email||password.length<6){  
-  message('authMessage','Informe um e-mail válido e uma senha com pelo menos 6 caracteres.','error');  
-  return;  
- }  
- const{data,error}=await db.auth.signUp({email,password});
- if(error){message('authMessage',error.message,'error');return;}
- if(data.session){
-  message('authMessage','Conta criada! Você já entrou no RADAR.','ok');
-  await loadSallesData();
-loadSession();
- }else{
-  message('authMessage','Conta criada. Se a confirmação por e-mail ainda estiver ativa, confira sua caixa de entrada.','ok');
- }
-}  
-  
-async function signIn(){  
- const email=$('authEmail').value.trim();  
- const password=$('authPassword').value;  
- const{error}=await db.auth.signInWithPassword({email,password});  
- if(error){  
-  message('authMessage',error.message,'error');  
-  return;  
- }  
- message('authMessage','Login realizado. Carregando seu acesso...','ok');  
- await loadSession();  
-}  
-  
-async function resetPassword(){  
- const email=$('authEmail').value.trim();  
- if(!email){  
-  message('authMessage','Digite seu e-mail para receber o link de recuperação.','error');  
-  return;  
- }  
- const{error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href});  
- message('authMessage',error?error.message:'Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.',error?'error':'ok');  
-}  
+async function resetPassword(){
+  const email=$('authEmail').value.trim();
+
+  if(!email){
+    message('authMessage','Digite seu e-mail para receber o link de recuperação.','error');
+    return;
+  }
+
+  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+
+  message(
+    'authMessage',
+    error ? error.message : 'Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.',
+    error ? 'error' : 'ok'
+  );
+}
   
 async function signOut(){  
  await db.auth.signOut();  
@@ -773,21 +750,7 @@ async function loadProducts(){
  renderProducts();
  renderTrialShowcase();
  if($("zeroSalesList"))loadZeroSalesProducts();
-async function resetPassword(){
-  const email=$('authEmail').value.trim();
-
-  if(!email){
-    message('authMessage','Digite seu e-mail para receber o link de recuperação.','error');
-    return;
-  }
-
-  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href});
-
-  message(
-    'authMessage',
-    error ? error.message : 'Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.',
-    error ? 'error' : 'ok'
-  );
+}
 }
   
 /* NORMALIZAÇÃO DOS RESULTADOS DA SHOPEE */  
@@ -810,7 +773,8 @@ function normalizeShopeeProduct(p,index=0){
  let description='Oferta encontrada na Shopee • Loja: '+shopName;  
  if(commissionRate!==null&&commissionRate!==''){  
   description+=' • Taxa de comissão informada: '+commissionRate+'%';  
- }  
+ }  if($("zeroSalesList"))loadZeroSalesProducts();
+}
   
  return{  
   id:'shopee-'+String(itemId),  
