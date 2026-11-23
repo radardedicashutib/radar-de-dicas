@@ -1004,17 +1004,57 @@ function renderPrompts(){
  $('promptsAccess').innerHTML=html||'<div class="empty">Nenhum prompt cadastrado.</div>';
 }
 
-function renderTutorials(){
- const allowed=isAdmin||hasPaidMembership;
- const html=allowed?tutorialRows.map(p=>`
-  <div class="content-card">
-   <h3>${esc(p.titulo||'Vídeo')}</h3>
-   <p>${esc(p.descricao||'')}</p>
-   ${p.video_url?`<video controls playsinline src="${esc(p.video_url)}"></video>`:''}
-   ${isAdmin?`<button class="danger" onclick="deleteTutorial('${p.id}')">Excluir</button>`:''}
-  </div>`).join(''):'<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';
 
- $('tutorialsAccess').innerHTML=html||'<div class="empty">Nenhum tutorial cadastrado.</div>';
+async function renderTutorials(){
+  const allowed=isAdmin||hasPaidMembership;
+
+  const target=$('tutorialsAccess');
+  if(!target)return;
+
+  if(!allowed){
+    target.innerHTML='<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';
+    return;
+  }
+
+  const rows=Array.isArray(tutorialRows)?tutorialRows:[];
+
+  const cards=await Promise.all(rows.map(async p=>{
+    let videoUrl=p.video_url||'';
+
+    if(p.storage_path){
+      const {data,error}=await db.storage
+        .from('radar-ugc-videos')
+        .createSignedUrl(p.storage_path,3600);
+
+      if(error){
+        console.error('Erro ao gerar link do vídeo:',error);
+      }else{
+        videoUrl=data?.signedUrl||videoUrl;
+      }
+    }
+
+    return `
+      <div class="content-card">
+        <h3>${esc(p.titulo||'Vídeo')}</h3>
+        <p>${esc(p.descricao||'')}</p>
+
+        ${videoUrl
+          ? `<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`
+          : '<p class="muted">Não foi possível carregar este vídeo.</p>'
+        }
+
+        ${isAdmin
+          ? `<button class="danger" onclick="deleteTutorial('${p.id}')">Excluir</button>`
+          : ''
+        }
+      </div>
+    `;
+  }));
+
+  target.innerHTML=cards.join('')||
+    '<div class="empty">Nenhum tutorial cadastrado.</div>';
+}
+
 }
 
 /* ADMINISTRAÇÃO DE PROMPTS */
