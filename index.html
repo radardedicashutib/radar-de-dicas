@@ -628,121 +628,7 @@ async function signIn(){
 }
 
   
- const{count,error}=await db.from('radar_novidades')  
-  .select('item_id',{count:'exact',head:true});  
-  
- if(error){  
-  console.error('Erro ao consultar novidades:',error);  
-   if(isAdmin)message('appMessage','Não foi possível atualizar o contador de novidades: '+error.message,'error');
-  return;  
- }  
-  
- radarNoveltyCount=count||0;  
- $('countNew').textContent=radarNoveltyCount;  
-}  
-  
-async function registerRadarNovelties(list,keyword){
-  const email = $('authEmail').value.trim();
-  const password = $('authPassword').value;
 
-  if(!email || !password){
-    message('authMessage','Informe seu e-mail e sua senha.','error');
-    return;
-  }
-
-  const button = document.querySelector(
-    '#authPanel button[onclick="signIn()"]'
-  );
-
-  if(button){
-    button.disabled = true;
-    button.textContent = 'Entrando...';
-  }
-
-  try {
-    message('authMessage','Verificando seus dados...');
-
-    const { data, error } = await db.auth.signInWithPassword({
-      email,
-      password
-    });
-
-    if(error){
-      message('authMessage','Erro no login: ' + error.message,'error');
-      return;
-    }
-
-    if(!data.session){
-      message('authMessage','Login sem sessão ativa. Verifique sua conta.','error');
-      return;
-    }
-
-    await loadSession();
-
-    message('appMessage','Login realizado com sucesso!','ok');
-
-  } catch(error) {
-    console.error('Erro ao entrar no RADAR:', error);
-
-    message(
-      'authMessage',
-      'Falha ao entrar: ' + (error.message || 'Erro inesperado.'),
-      'error'
-    );
-
-  } finally {
-    if(button){
-      button.disabled = false;
-      button.textContent = 'Entrar';
-    }
-  }
-} 
- if(!currentUser||!Array.isArray(list)||!list.length)return 0;  
-  
- const unique=new Map();  
-  
- list.forEach(p=>{  
-  if(p.hasStableItemId&&p.itemId!==null&&p.itemId!==undefined&&String(p.itemId).trim()!==''){  
-   unique.set(String(p.itemId),p);  
-  }  
- });  
-  
- const entries=[...unique.entries()];  
- if(!entries.length){  
-  await loadRadarNoveltyCount();  
-  return 0;  
- }  
-  
- const ids=entries.map(([id])=>id);  
- const{data:existing,error:readError}=await db.from('radar_novidades')  
-  .select('item_id')  
-  .in('item_id',ids);  
-  
- if(readError)throw new Error('Erro ao consultar histórico: '+readError.message);  
-  
- const known=new Set((existing||[]).map(x=>String(x.item_id)));  
- const newProducts=entries.filter(([id])=>!known.has(id));  
-  
- if(newProducts.length){  
-  const rows=newProducts.map(([id,p])=>({  
-   item_id:id,  
-   product_name:p.nome||'Produto Shopee',  
-   image_url:p.imagem_url||null,  
-   first_search:keyword,  
-   created_by:currentUser.id  
-  }));  
-  
-  const{error:insertError}=await db.from('radar_novidades')  
-   .upsert(rows,{onConflict:'item_id',ignoreDuplicates:true});  
-  
-  if(insertError)throw new Error('Erro ao registrar novidades: '+insertError.message);  
- }  
-  
- await loadRadarNoveltyCount();  
- return newProducts.length;  
-}  
-  
-/* AUTENTICAÇÃO */  
 async function signUp(){  
  const email=$('authEmail').value.trim();  
  const password=$('authPassword').value;  
@@ -887,7 +773,22 @@ async function loadProducts(){
  renderProducts();
  renderTrialShowcase();
  if($("zeroSalesList"))loadZeroSalesProducts();
-}  
+async function resetPassword(){
+  const email=$('authEmail').value.trim();
+
+  if(!email){
+    message('authMessage','Digite seu e-mail para receber o link de recuperação.','error');
+    return;
+  }
+
+  const {error}=await db.auth.resetPasswordForEmail(email,{redirectTo:location.href});
+
+  message(
+    'authMessage',
+    error ? error.message : 'Se o e-mail estiver cadastrado, você receberá as instruções de recuperação.',
+    error ? 'error' : 'ok'
+  );
+}
   
 /* NORMALIZAÇÃO DOS RESULTADOS DA SHOPEE */  
 function normalizeShopeeProduct(p,index=0){  
