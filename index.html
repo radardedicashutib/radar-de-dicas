@@ -520,7 +520,62 @@ async function loadRadarNoveltyCount(){
  $('countNew').textContent=radarNoveltyCount;  
 }  
   
-async function registerRadarNovelties(list,keyword){  
+async function signIn(){
+  const email = $('authEmail').value.trim();
+  const password = $('authPassword').value;
+
+  if(!email || !password){
+    message('authMessage','Informe seu e-mail e sua senha.','error');
+    return;
+  }
+
+  const button = document.querySelector(
+    '#authPanel button[onclick="signIn()"]'
+  );
+
+  if(button){
+    button.disabled = true;
+    button.textContent = 'Entrando...';
+  }
+
+  try {
+    message('authMessage','Verificando seus dados...');
+
+    const { data, error } = await db.auth.signInWithPassword({
+      email,
+      password
+    });
+
+    if(error){
+      message('authMessage','Erro no login: ' + error.message,'error');
+      return;
+    }
+
+    if(!data.session){
+      message('authMessage','Login sem sessão ativa. Verifique sua conta.','error');
+      return;
+    }
+
+    await loadSession();
+
+    message('appMessage','Login realizado com sucesso!','ok');
+
+  } catch(error) {
+    console.error('Erro ao entrar no RADAR:', error);
+
+    message(
+      'authMessage',
+      'Falha ao entrar: ' + (error.message || 'Erro inesperado.'),
+      'error'
+    );
+
+  } finally {
+    if(button){
+      button.disabled = false;
+      button.textContent = 'Entrar';
+    }
+  }
+} 
  if(!currentUser||!Array.isArray(list)||!list.length)return 0;  
   
  const unique=new Map();  
