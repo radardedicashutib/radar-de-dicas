@@ -1457,6 +1457,48 @@ function renderTrialShowcase(){
       :'<div class="empty">Nenhum produto demonstrativo cadastrado.</div>';
   }
 }
+
+/* LINKS SALVOS */
+function renderSaved(){
+  const el=$('savedList');
+  if(!el)return;
+
+  el.innerHTML=(!isAdmin&&!hasPaidMembership)
+    ?'<div class="empty">Links salvos — disponível para assinantes pagos.</div>'
+    :saved.length?saved.map(s=>`
+      <div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:9px 0">
+        <div>
+          <b>${esc(s.titulo)}</b>
+          <div class="muted" style="font-size:12px;word-break:break-all">${esc(s.url)}</div>
+        </div>
+        <div>
+          <button class="primary" onclick="window.open('${esc(s.url)}','_blank','noopener,noreferrer')">Abrir</button>
+          <button class="danger" onclick="removeSaved('${s.id}')">Remover</button>
+        </div>
+      </div>
+    `).join('')
+    :'<div class="empty">Você ainda não salvou links.</div>';
+}
+
+async function loadSaved(){
+  if(!currentUser)return;
+
+  const {data,error}=await db.from('links_salvos')
+    .select('*')
+    .eq('user_id',currentUser.id)
+    .order('criado_em',{ascending:false});
+
+  if(error){
+    console.error('Erro ao carregar links salvos:',error);
+    saved=[];
+  }else{
+    saved=data||[];
+  }
+
+  updateStats();
+  renderSaved();
+}
+
  async function initializeRadar(){
  try{
   const{data:{session},error}=await db.auth.getSession();
