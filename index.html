@@ -1406,7 +1406,56 @@ function renderProducts(){
   if(typeof updateStats==='function')updateStats();
   if(typeof renderDemandRadar==='function')renderDemandRadar();
 }
-async function initializeRadar(){
+function renderTrialShowcase(){
+  if(!hasTrialAccess || isAdmin)return;
+
+  const source=manualProducts||[];
+
+  const top=[...source].sort(
+    (a,b)=>(Number(b.vendas)||0)-(Number(a.vendas)||0)
+  );
+
+  const hot=source
+    .filter(p=>String(p.tendencia||'').toLowerCase()==='em alta')
+    .sort((a,b)=>(Number(b.vendas)||0)-(Number(a.vendas)||0))
+    .slice(0,10);
+
+  const commission=source
+    .filter(p=>Number(p.taxa_comissao??p.taxaComissao)>20)
+    .sort((a,b)=>(Number(b.taxa_comissao??b.taxaComissao||0))-
+                   (Number(a.taxa_comissao??a.taxaComissao||0)))
+    .slice(0,5);
+
+  const low=source
+    .filter(p=>Number(p.concorrencia)>0&&Number(p.concorrencia)<10)
+    .sort((a,b)=>Number(a.concorrencia)-Number(b.concorrencia));
+
+  if($('bestList')){
+    $('bestList').innerHTML=top.length
+      ?top.map(productCard).join('')
+      :'<div class="empty">Nenhum produto cadastrado.</div>';
+  }
+
+  if($('trendList')){
+    $('trendList').innerHTML=hot.length
+      ?hot.map(productCard).join('')
+      :'<div class="empty">Nenhum produto marcado como Em alta.</div>';
+  }
+
+  if($('weeklyRecommendations')){
+    $('weeklyRecommendations').innerHTML=top.length
+      ?top.slice(0,1).map(p=>`
+        <div class="recommendation-item">
+          ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}
+          <strong>${esc(p.nome)}</strong>
+          <small>Exemplo de postagem</small>
+          <p class="muted">Demonstração cadastrada pelo administrador.</p>
+        </div>
+      `).join('')
+      :'<div class="empty">Nenhum produto demonstrativo cadastrado.</div>';
+  }
+}
+ async function initializeRadar(){
  try{
   const{data:{session},error}=await db.auth.getSession();
   if(error)throw error;
