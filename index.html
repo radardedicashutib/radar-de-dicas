@@ -1362,7 +1362,50 @@ db.auth.onAuthStateChange((event,session)=>{
   $('appArea').classList.add('hidden');
  }
 });
+function renderProducts(){
+  const q=($('q')?.value||'').toLowerCase();
+  const c=$('commission')?.value||'all';
+  const k=$('competition')?.value||'all';
+  const cat=$('category')?.value||'all';
 
+  let list=(products||[]).filter(p=>
+    ((p.nome||'')+' '+(p.categoria||'')).toLowerCase().includes(q)&&
+    (c==='all'||Number(p.taxa_comissao??p.taxaComissao)>20)&&
+    (k==='all'||(k==='popular'&&Number(p.vendas)>0))&&
+    (cat==='all'||p.categoria===cat)
+  );
+
+  if(k==='popular'){
+    list.sort((a,b)=>(Number(b.vendas)||0)-(Number(a.vendas)||0));
+  }
+
+  const container=$('productList');
+
+  if(container){
+    if(list.length && typeof productCard==='function'){
+      container.innerHTML=list.map(productCard).join('');
+    }else{
+      container.innerHTML=list.length
+        ?list.map(p=>`
+          <article class="product">
+            ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}
+            <h3>${esc(p.nome)}</h3>
+            <p>${esc(p.categoria||'')}</p>
+            <p>Comissão: ${money(p.comissao)}</p>
+            <p>Vendas: ${esc(p.vendas??'Não informado')}</p>
+            ${p.link_afiliado||p.link_produto
+              ?`<a href="${esc(p.link_afiliado||p.link_produto)}" target="_blank" rel="noopener">Abrir produto</a>`
+              :'Link não cadastrado'}
+          </article>
+        `).join('')
+        :'<div class="empty">Nenhum produto encontrado.</div>';
+    }
+  }
+
+  if(typeof renderOther==='function')renderOther();
+  if(typeof updateStats==='function')updateStats();
+  if(typeof renderDemandRadar==='function')renderDemandRadar();
+}
 async function initializeRadar(){
  try{
   const{data:{session},error}=await db.auth.getSession();
