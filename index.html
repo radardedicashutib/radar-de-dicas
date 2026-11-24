@@ -1299,9 +1299,10 @@ async function loadVideo(source='video'){
  try{
   const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
   if(error)throw error;
-  const url=db.storage.from('videos-radar').getPublicUrl(data.path).data?.publicUrl;
-  if(!url)throw new Error('O Supabase não retornou o endereço do vídeo.');
-  const{error:saveError}=await db.from('radar_config').upsert({chave:'video_principal',valor:url},{onConflict:'chave'});
+  // Bucket privado: armazenamos somente o caminho do objeto, nunca uma URL pública.
+  const storagePath=data?.path;
+  if(!storagePath)throw new Error('O Supabase não retornou o caminho do vídeo enviado.');
+  const{error:saveError}=await db.from('radar_config').upsert({chave:'video_principal',valor:storagePath},{onConflict:'chave'});
   if(saveError)throw saveError;
   message(statusId,'Vídeo principal publicado! Atualizando a tela inicial...','ok');
   if(input)input.value='';
@@ -1323,24 +1324,59 @@ async function removeVideo(){
  }catch(error){message('videoAdminMessage','Erro ao remover: '+error.message,'error');}
 }
 
+function getMainVideoStoragePath(value){
+ const raw=String(value||'').trim();
+ if(!raw)return '';
+
+ // Compatibilidade com o endereço público antigo já salvo em radar_config.
+ if(/^https?:\/\//i.test(raw)){
+  try{
+   const parsed=new URL(raw);
+   const marker='/storage/v1/object/';
+   const markerIndex=parsed.pathname.indexOf(marker);
+   if(markerIndex<0)return '';
+   let objectPart=parsed.pathname.slice(markerIndex+marker.length);
+   objectPart=objectPart.replace(/^(public|sign|authenticated)\//,'');
+   const bucketPrefix='videos-radar/';
+   if(!objectPart.startsWith(bucketPrefix))return '';
+   return decodeURIComponent(objectPart.slice(bucketPrefix.length));
+  }catch(error){
+   console.warn('Não foi possível interpretar o endereço antigo do vídeo:',error);
+   return '';
+  }
+ }
+
+ return raw.replace(/^\/+/,'').replace(/^videos-radar\//,'');
+}
+
 async function loadSharedVideo(){
  try{
+  // O vídeo de boas-vindas é liberado para administrador, teste grátis ativo e plano pago ativo.
+  if(!currentUser||(!isAdmin&&!hasActiveMembership)){
+   showVideoPlaceholder('Entre com uma conta com acesso ativo para assistir ao vídeo de boas-vindas.');
+   return;
+  }
+
   const{data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
   if(error)throw error;
+
   const raw=String(data?.valor||'').trim();
   if(!raw){showVideoPlaceholder();return;}
-  let videoUrl=raw;
-  if(!/^https?:\/\//i.test(raw)){
-   const path=raw.replace(/^\/+/, '').replace(/^videos-radar\//,'');
-   const{data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
-   if(!signedError&&signed?.signedUrl)videoUrl=signed.signedUrl;
-   else videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';
+
+  const path=getMainVideoStoragePath(raw);
+  if(!path){
+   throw new Error('O caminho do vídeo não foi reconhecido. Publique o vídeo novamente pelo painel administrador.');
   }
-  if(!videoUrl){showVideoPlaceholder('Não foi possível localizar o arquivo no bucket videos-radar.');return;}
-  displaySharedVideo(videoUrl);
+
+  // Bucket privado: gerar URL assinada para o usuário autenticado.
+  const{data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
+  if(signedError)throw signedError;
+  if(!signed?.signedUrl)throw new Error('O Supabase não gerou o endereço temporário do vídeo.');
+
+  displaySharedVideo(signed.signedUrl);
  }catch(error){
   console.error('Erro ao carregar vídeo principal:',error);
-  showVideoPlaceholder('Não foi possível carregar o vídeo: '+(error.message||'verifique o Supabase.'));
+  showVideoPlaceholder('Não foi possível carregar o vídeo: '+(error.message||'verifique a permissão de leitura do bucket videos-radar.'));
  }
 }
 
@@ -1352,7 +1388,18 @@ function showVideoPlaceholder(note='O vídeo aparecerá aqui quando for publicad
 function displaySharedVideo(url){
  const safe=esc(url);
  const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;height:100%;max-height:420px;object-fit:contain;background:#000" src="${safe}"></video>`;
- ['videoPreview','heroVideo','adminVideoPreview'].forEach(id=>{const el=$(id);if(el)el.innerHTML=videoHtml;});
+ ['videoPreview','heroVideo','adminVideoPreview'].forEach(id=>{
+  const el=$(id);
+  if(!el)return;
+  el.innerHTML=videoHtml;
+  const player=el.querySelector('video');
+  if(player){
+   player.addEventListener('error',()=>{
+    console.error('Falha na reprodução do vídeo principal:',player.error);
+    showVideoPlaceholder('O vídeo foi localizado, mas o navegador não conseguiu reproduzi-lo. Confira se o arquivo está em MP4/H.264.');
+   },{once:true});
+  }
+ });
 }
 
 /* COMPARTILHAR RADAR */
