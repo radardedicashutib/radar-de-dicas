@@ -180,9 +180,11 @@ main{padding:0 11px}
 <b>Importante:</b> os dados de vendas, comissão e concorrência dependem das informações disponíveis. No teste grátis, a busca automática na Shopee fica bloqueada; os produtos demonstrativos são cadastrados pelo administrador. O Radar atualiza os dados sincronizados a cada 6 horas quando a rotina de integração estiver configurada. O Índice de Oportunidade é uma estimativa, não garantia de vendas.
 </div>  <section class="authbox panel" id="authPanel">
 <h2>Acesse sua conta</h2>
-<p class="muted">Entre ou crie seu cadastro para acessar o Radar.</p>
-<label>E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></label>
-<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo de 6 caracteres"></label>
+<p class="muted">Crie sua conta com nome completo, e-mail e CPF. O teste grátis começa após a confirmação do e-mail.</p>
+<label>Nome completo<input id="authFullName" type="text" autocomplete="name" placeholder="Seu nome completo"></label>
+<label style="display:block;margin-top:9px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></label>
+<label style="display:block;margin-top:9px">CPF<input id="authCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label>
+<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"></label>
 <div class="row">
 <button class="primary" onclick="signIn()">Entrar</button>
 <button class="soft" onclick="signUp()">Criar conta</button>
@@ -243,7 +245,7 @@ main{padding:0 11px}
 <input id="q" placeholder="Ex.: comedouro pet, vestido, panela" oninput="renderProducts()">
 <select id="commission" onchange="renderProducts()">
 <option value="all">Todas as comissões</option>
-<option value="20">Acima de R$ 20</option>
+<option value="20">Comissão acima de 20%</option>
 </select>
 <select id="competition" onchange="renderProducts()">
 <option value="all">Todos os produtos</option>
@@ -492,18 +494,40 @@ async function signIn(){
  }
 }
 
+function normalizeCpf(value){
+ return String(value||'').replace(/\D/g,'');
+}
+function validCpf(value){
+ const cpf=normalizeCpf(value);
+ if(cpf.length!==11||/^(\d)\1{10}$/.test(cpf))return false;
+ let sum=0;
+ for(let i=0;i<9;i++)sum+=Number(cpf[i])*(10-i);
+ let d1=(sum*10)%11;if(d1===10)d1=0;
+ if(d1!==Number(cpf[9]))return false;
+ sum=0;
+ for(let i=0;i<10;i++)sum+=Number(cpf[i])*(11-i);
+ let d2=(sum*10)%11;if(d2===10)d2=0;
+ return d2===Number(cpf[10]);
+}
 async function signUp(){
+ const fullName=$('authFullName').value.trim();
  const email=$('authEmail').value.trim();
+ const cpf=normalizeCpf($('authCpf').value);
  const password=$('authPassword').value;
- if(!email||password.length<6){
-  message('authMessage','Informe um e-mail válido e uma senha com pelo menos 6 caracteres.','error');
-  return;
+ if(fullName.length<3){message('authMessage','Informe seu nome completo.','error');return;}
+ if(!email||!validCpf(cpf)||password.length<6){
+  message('authMessage','Confira o e-mail, informe um CPF válido e use uma senha com pelo menos 6 caracteres.','error');return;
  }
  try{
-  const{data,error}=await db.auth.signUp({email,password});
+  localStorage.setItem('radar_pending_cpf',cpf);
+  localStorage.setItem('radar_pending_name',fullName);
+  const{data,error}=await db.auth.signUp({
+   email,password,
+   options:{data:{full_name:fullName},emailRedirectTo:location.origin+location.pathname}
+  });
   if(error)throw error;
-  if(data?.session)await handleSession(data.session);
-  else message('authMessage','Cadastro realizado. Confira seu e-mail para confirmar a conta.','ok');
+  if(data?.session){await handleSession(data.session);}
+  else message('authMessage','Cadastro realizado! Enviamos um link para confirmar seu e-mail. Depois de confirmar, entre com seu e-mail e senha para ativar os 3 dias grátis.','ok');
  }catch(error){
   console.error('Erro no cadastro:',error);
   message('authMessage',error.message||'Não foi possível criar a conta.','error');
@@ -553,13 +577,50 @@ async function handleSession(session){
  $('authPanel').classList.add('hidden');
  $('appArea').classList.remove('hidden');
  $('accountButton').textContent='Conta conectada';
- $('welcome').textContent='Olá, '+(currentUser.email||'usuário');
+ $('welcome').textContent='Olá, '+(currentUser.user_metadata?.full_name||currentUser.email||'usuário');
  await checkMembership();
  await loadProducts();
  await loadSaved();
  await loadPublicContent();
  await loadSharedVideo();
  renderDashboard();
+}
+
+async function activateCpfTrialIfNeeded(){
+ if(!currentUser||isAdmin||hasPaidMembership)return;
+ const confirmed=!!(currentUser.email_confirmed_at||currentUser.confirmed_at);
+ if(!confirmed){
+  message('appMessage','Confirme seu e-mail para ativar o teste grátis de 3 dias.','error');
+  return;
+ }
+ const pendingCpf=localStorage.getItem('radar_pending_cpf')||normalizeCpf($('authCpf')?.value||'');
+ try{
+  const{data:status,error:statusError}=await db.rpc('radar_verificar_teste_cpf');
+  if(!statusError&&status?.ativo===true){
+   hasTrialAccess=true;hasActiveMembership=true;
+   localStorage.removeItem('radar_pending_cpf');
+   localStorage.removeItem('radar_pending_name');
+   return;
+  }
+  if(!pendingCpf)return;
+  const{data,error}=await db.rpc('radar_ativar_teste_cpf',{p_cpf:pendingCpf});
+  if(error)throw error;
+  if(data?.ativo===false||['cpf_ja_utilizado','ja_utilizado'].includes(data?.status)){
+   message('appMessage','Este CPF já utilizou o teste grátis. Escolha um plano pago para continuar.','error');
+   localStorage.removeItem('radar_pending_cpf');
+   return;
+  }
+  if(data?.ativo===true||['ativado','ja_ativo'].includes(data?.status)){
+   hasTrialAccess=true;hasActiveMembership=true;
+   localStorage.removeItem('radar_pending_cpf');
+   localStorage.removeItem('radar_pending_name');
+  }else if(data?.message){
+   message('appMessage',String(data.message),'error');
+  }
+ }catch(error){
+  console.error('Erro ao ativar teste por CPF:',error);
+  message('appMessage','Não foi possível ativar o teste grátis: '+(error.message||'verifique a configuração do Supabase.'),'error');
+ }
 }
 
 async function checkMembership(){
@@ -580,6 +641,10 @@ async function checkMembership(){
   }catch(error){
    console.error('Erro ao verificar assinatura:',error);
   }
+  try{
+   const{data,error}=await db.rpc('radar_verificar_teste_cpf');
+   if(!error&&data?.ativo===true){hasTrialAccess=true;hasActiveMembership=true;}
+  }catch(error){console.warn('Verificação de teste por CPF:',error);}
   try{
    const{data,error}=await db.from('radar_assinaturas').select('*').eq('user_id',currentUser.id).eq('status','active').order('criado_em',{ascending:false}).limit(1);
    if(!error&&data?.length){
@@ -748,6 +813,23 @@ function competitionLevel(value){
  if(n<=20)return 'Baixa';
  if(n<=100)return 'Média';
  return 'Alta';
+}
+
+function productCard(p){
+ const id=String(p.id??'');
+ const link=p.link_afiliado||p.link_produto||'';
+ return `<article class="product">
+  ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome||'Produto')}" loading="lazy">`:''}
+  <h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'')}</p>
+  <div class="metrics">
+   <div><b>${money(p.preco)}</b><small>Preço</small></div>
+   <div><b>${money(p.comissao)}</b><small>Comissão</small></div>
+   <div><b>${esc(p.vendas??'—')}</b><small>Vendas</small></div>
+  </div>
+  ${opportunityHtml(p)}
+  ${link?`<div class="actions"><button class="primary" onclick="openLink('${esc(id)}')">Abrir produto</button><button class="soft" onclick="toggleSave('${esc(id)}')">⭐ Salvar link</button><button class="soft" onclick="shareProduct('${esc(id)}')">Compartilhar</button></div>`:''}
+  ${isAdmin&&p.origem==='manual'?`<div class="actions"><button class="soft" onclick="editProduct('${esc(id)}')">Editar</button><button class="danger" onclick="deleteProduct('${esc(id)}')">Excluir</button></div>`:''}
+ </article>`;
 }
 
 /* FILTROS */
@@ -992,7 +1074,7 @@ async function loadTutorials(){
 }
 
 function renderPrompts(){
- const allowed=isAdmin||hasPaidMembership;
+ const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
  const html=allowed?promptRows.map(p=>`
   <div class="content-card">
    <span class="pill">${esc(p.categoria||'Prompt')}</span>
@@ -1007,7 +1089,7 @@ function renderPrompts(){
 
 
 async function renderTutorials(){
-  const allowed=isAdmin||hasPaidMembership;
+  const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
 
   const target=$('tutorialsAccess');
   if(!target)return;
@@ -1099,9 +1181,9 @@ async function saveTutorial(event){
 
  if(file){
   const path=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
+  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:true});
   if(error){alert('Erro no envio do vídeo: '+error.message);return;}
-  videoUrl=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
+  videoUrl=db.storage.from('radar-ugc-videos').getPublicUrl(data.path).data.publicUrl;
  }
 
  const id=$('tutorialEditId').value;
@@ -1193,10 +1275,10 @@ async function loadVideo(){
 
  message('videoMessage','Enviando vídeo...');
  const path='principal-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
- const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
+ const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:true});
  if(error){message('videoMessage','Erro: '+error.message,'error');return;}
 
- const url=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
+ const url=db.storage.from('videos-radar').getPublicUrl(data.path).data.publicUrl;
  const{error:saveError}=await db.from('radar_config').upsert({
   chave:'video_principal',
   valor:url
@@ -1502,8 +1584,8 @@ function renderSaved(){
   const el=$('savedList');
   if(!el)return;
 
-  el.innerHTML=(!isAdmin&&!hasPaidMembership)
-    ?'<div class="empty">Links salvos — disponível para assinantes pagos.</div>'
+  el.innerHTML=(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)
+    ?'<div class="empty">Faça um plano para acessar seus links salvos.</div>'
     :saved.length?saved.map(s=>`
       <div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:9px 0">
         <div>
