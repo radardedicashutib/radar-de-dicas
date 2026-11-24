@@ -319,6 +319,7 @@ main{padding:0 11px}
 <div class="stat"><strong id="sallesAdRoas">—</strong><small>ROAS médio informado</small></div>
 </div>
 </div>
+<div class="panel"><h3>🧠 Consultor de oportunidades — análise Salles</h3><p class="muted">A Sales IA organiza os dados que você informa e gera uma leitura de oportunidade, riscos e próximos passos. Nesta versão, a análise é calculada a partir dos dados cadastrados; não consulta automaticamente a Shopee.</p><div id="sallesInsights" class="content-grid"><div class="empty">Cadastre produtos para receber uma análise.</div></div></div>
 <div class="panel"><h3>🕵️ Espião de produtos</h3><p class="muted">Compare produtos e registre preço, vendas, comissão e concorrência observados na Shopee.</p>
 <form id="sallesProductForm" onsubmit="saveSallesProduct(event)"><div class="formgrid">
 <label>Nome do produto<input id="spName" required placeholder="Ex.: Mini aspirador portátil"></label>
@@ -390,7 +391,7 @@ main{padding:0 11px}
 </form>
 </div>
 <div class="panel"><h2>Gerenciar produtos</h2><div id="adminList"></div></div>
-<div class="panel"><h2>Gerenciar prompts virais</h2><p class="muted">Somente o administrador pode cadastrar, editar e excluir.</p><form id="promptForm" onsubmit="savePrompt(event)"><input type="hidden" id="promptEditId"><div class="formgrid"><label>Título<input id="promptTitle" required></label><label>Categoria<input id="promptCategory" placeholder="Ex.: UGC, POV, demonstração"></label><label class="wide">Prompt completo<textarea id="promptContent" rows="5" required></textarea></label></div><div class="row"><button class="primary" type="submit">Salvar prompt</button><button class="soft" type="button" onclick="clearPromptForm()">Limpar</button></div></form><div id="adminPrompts"></div></div>
+<div class="panel"><h2>🎥 Gerenciar vídeo principal — 10 dicas</h2><p class="muted">Adicione, substitua ou remova o vídeo exibido na tela inicial. O vídeo será salvo no bucket videos-radar.</p><div id="mainVideoAdminControls"><label style="display:block;font-weight:800;margin:12px 0 6px">Selecionar novo vídeo</label><input type="file" id="videoFileAdmin" accept="video/*"><div class="row"><button class="primary" type="button" onclick="loadVideo('admin')">Adicionar / trocar vídeo principal</button><button class="danger" type="button" onclick="removeVideo()">Remover vídeo publicado</button></div><div id="videoAdminMessage" class="statusline"></div></div><div class="video" id="adminVideoPreview" style="margin-top:12px"><div class="video-placeholder">Prévia do vídeo principal</div></div></div><div class="panel"><h2>Gerenciar prompts virais</h2><p class="muted">Somente o administrador pode cadastrar, editar e excluir.</p><form id="promptForm" onsubmit="savePrompt(event)"><input type="hidden" id="promptEditId"><div class="formgrid"><label>Título<input id="promptTitle" required></label><label>Categoria<input id="promptCategory" placeholder="Ex.: UGC, POV, demonstração"></label><label class="wide">Prompt completo<textarea id="promptContent" rows="5" required></textarea></label></div><div class="row"><button class="primary" type="submit">Salvar prompt</button><button class="soft" type="button" onclick="clearPromptForm()">Limpar</button></div></form><div id="adminPrompts"></div></div>
 <div class="panel"><h2>Gerenciar vídeos UGC e POV</h2><p class="muted">Envie vídeos para a biblioteca paga. Esta biblioteca é separada do vídeo antigo das 10 dicas.</p><form id="tutorialForm" onsubmit="saveTutorial(event)"><input type="hidden" id="tutorialEditId"><div class="formgrid"><label>Título<input id="tutorialTitle" required></label><label>Ordem<input id="tutorialOrder" type="number" min="0" value="0"></label><label class="wide">Descrição<textarea id="tutorialDescription" rows="3"></textarea></label><label class="wide">Arquivo de vídeo<input id="tutorialFile" type="file" accept="video/*"></label></div><div class="row"><button class="primary" type="submit">Salvar vídeo</button><button class="soft" type="button" onclick="clearTutorialForm()">Limpar</button></div></form><div id="adminTutorials"></div></div>
 <div class="panel">
 <h2>Solicitações de plano</h2>
@@ -651,6 +652,7 @@ async function checkMembership(){
  $('adminTab').classList.toggle('hidden',!isAdmin);
  $('sallesTab').classList.toggle('hidden',!isAdmin&&!hasPaidMembership);
  $('videoAdminControls').classList.toggle('hidden',!isAdmin);
+  $('mainVideoAdminControls')?.classList.toggle('hidden',!isAdmin);
  if(!isAdmin&&!hasPaidMembership&&!hasTrialAccess){
   message('appMessage','Seu acesso está limitado. Escolha um plano para continuar.','error');
  }else{
@@ -1137,20 +1139,32 @@ async function renderTutorials(){
  const target=$('tutorialsAccess');
  if(!target)return;
  const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
- if(!allowed){target.innerHTML='<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';return;}
+ if(!allowed){target.innerHTML='<div class="empty">🔒 Tutoriais disponíveis durante o acesso autorizado.</div>';return;}
  const rows=Array.isArray(tutorialRows)?tutorialRows:[];
- if(!rows.length){target.innerHTML='<div class="empty">Nenhum tutorial cadastrado.</div>';return;}
- target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
- const cards=await Promise.all(rows.map(async p=>{
-  const videoUrl=await resolveTutorialVideo(p);
-  return `<div class="content-card">
-   <h3>${esc(p.titulo||p.nome||'Vídeo')}</h3>
-   <p>${esc(p.descricao||'')}</p>
-   ${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">O cadastro existe, mas não foi possível resolver o endereço do arquivo de vídeo.</p>'}
-   ${isAdmin?`<button class="danger" onclick="deleteTutorial('${esc(p.id)}')">Excluir</button>`:''}
-  </div>`;
- }));
- target.innerHTML=cards.join('');
+ if(!rows.length){target.innerHTML='<div class="empty">Nenhum tutorial cadastrado.</div>';}
+ else{
+  target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
+  const cards=await Promise.all(rows.map(async p=>{
+   const videoUrl=await resolveTutorialVideo(p);
+   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
+  }));
+  target.innerHTML=cards.join('');
+ }
+ const admin=$('adminTutorials');
+ if(admin)admin.innerHTML=isAdmin?rows.map(p=>`<div class="content-card"><b>${esc(p.titulo||'Vídeo')}</b><p>${esc(p.descricao||'')}</p><div class="row"><button class="soft" type="button" onclick="editTutorial('${esc(p.id)}')">Editar</button><button class="danger" type="button" onclick="deleteTutorial('${esc(p.id)}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum vídeo cadastrado.</div>':'';
+}
+
+function editTutorial(id){
+ if(!isAdmin)return;
+ const p=tutorialRows.find(x=>String(x.id)===String(id));
+ if(!p)return;
+ $('tutorialEditId').value=p.id;
+ $('tutorialTitle').value=p.titulo||p.nome||'';
+ $('tutorialOrder').value=p.ordem??0;
+ $('tutorialDescription').value=p.descricao||'';
+ $('tutorialFile').value='';
+ $('tutorialForm').scrollIntoView({behavior:'smooth',block:'center'});
+ message('appMessage','Editando "'+(p.titulo||'vídeo')+'". Selecione outro arquivo somente se quiser substituir o vídeo.','ok');
 }
 
 /* ADMINISTRAÇÃO DE PROMPTS */
@@ -1190,32 +1204,21 @@ async function deletePrompt(id){
 async function saveTutorial(event){
  event.preventDefault();
  if(!isAdmin)return;
-
- const file=$('tutorialFile').files[0];
- let videoUrl='';
-
- if(file){
-  const path=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:true});
-  if(error){alert('Erro no envio do vídeo: '+error.message);return;}
-  videoUrl=db.storage.from('radar-ugc-videos').getPublicUrl(data.path).data.publicUrl;
- }
-
  const id=$('tutorialEditId').value;
- const payload={
-  titulo:$('tutorialTitle').value.trim(),
-  ordem:numericValue($('tutorialOrder').value),
-  descricao:$('tutorialDescription').value.trim()
- };
- if(videoUrl)payload.video_url=videoUrl;
-
- const result=id
-  ?await db.from('radar_tutoriais').update(payload).eq('id',id)
-  :await db.from('radar_tutoriais').insert(payload);
-
- if(result.error){alert(result.error.message);return;}
+ const file=$('tutorialFile').files[0];
+ const payload={titulo:$('tutorialTitle').value.trim(),ordem:numericValue($('tutorialOrder').value),descricao:$('tutorialDescription').value.trim()};
+ if(file){
+  if(!file.type.startsWith('video/')){alert('Selecione um arquivo de vídeo válido.');return;}
+  const path='ugc-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
+  if(error){alert('Erro no envio do vídeo: '+error.message);return;}
+  payload.video_url=db.storage.from('radar-ugc-videos').getPublicUrl(data.path).data.publicUrl;
+ }
+ const result=id?await db.from('radar_tutoriais').update(payload).eq('id',id):await db.from('radar_tutoriais').insert(payload);
+ if(result.error){alert('Não foi possível salvar o vídeo: '+result.error.message);return;}
  clearTutorialForm();
  await loadTutorials();
+ message('appMessage',id?'Vídeo UGC atualizado.':'Vídeo UGC cadastrado.','ok');
 }
 
 function clearTutorialForm(){
@@ -1282,69 +1285,74 @@ async function loadAdminData(){
  await loadAdminRequests();
 }
 
-/* VÍDEO PRINCIPAL */
-async function loadVideo(){
+/* VÍDEO PRINCIPAL — gerenciamento e exibição */
+async function loadVideo(source='video'){
  if(!isAdmin)return;
- const file=$('videoFile').files[0];
- if(!file){message('videoMessage','Selecione um vídeo primeiro.','error');return;}
-
- message('videoMessage','Enviando vídeo...');
- const path='principal-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
- const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:true});
- if(error){message('videoMessage','Erro: '+error.message,'error');return;}
-
- const url=db.storage.from('videos-radar').getPublicUrl(data.path).data.publicUrl;
- const{error:saveError}=await db.from('radar_config').upsert({
-  chave:'video_principal',
-  valor:url
- },{onConflict:'chave'});
-
- if(saveError){message('videoMessage','Vídeo enviado, mas não foi possível salvar o endereço: '+saveError.message,'error');return;}
- message('videoMessage','Vídeo publicado com sucesso!','ok');
- await loadSharedVideo();
+ const input=$(source==='admin'?'videoFileAdmin':'videoFile');
+ const file=input?.files?.[0];
+ if(!file){message(source==='admin'?'videoAdminMessage':'videoMessage','Selecione um vídeo primeiro.','error');return;}
+ if(!file.type.startsWith('video/')){message(source==='admin'?'videoAdminMessage':'videoMessage','O arquivo selecionado não parece ser um vídeo.','error');return;}
+ const statusId=source==='admin'?'videoAdminMessage':'videoMessage';
+ message(statusId,'Enviando vídeo para o Supabase...');
+ const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+ const path='principal-'+Date.now()+'-'+safeName;
+ try{
+  const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
+  if(error)throw error;
+  const url=db.storage.from('videos-radar').getPublicUrl(data.path).data?.publicUrl;
+  if(!url)throw new Error('O Supabase não retornou o endereço do vídeo.');
+  const{error:saveError}=await db.from('radar_config').upsert({chave:'video_principal',valor:url},{onConflict:'chave'});
+  if(saveError)throw saveError;
+  message(statusId,'Vídeo principal publicado! Atualizando a tela inicial...','ok');
+  if(input)input.value='';
+  await loadSharedVideo();
+ }catch(error){
+  console.error('Erro ao publicar vídeo principal:',error);
+  message(statusId,'Não foi possível publicar: '+(error.message||'erro desconhecido'),'error');
+ }
 }
 
 async function removeVideo(){
- if(!isAdmin||!confirm('Remover o vídeo publicado?'))return;
- const{error}=await db.from('radar_config').delete().eq('chave','video_principal');
- if(error){message('videoMessage',error.message,'error');return;}
- await loadSharedVideo();
+ if(!isAdmin||!confirm('Remover o vídeo principal da tela inicial?'))return;
+ try{
+  const{error}=await db.from('radar_config').delete().eq('chave','video_principal');
+  if(error)throw error;
+  await loadSharedVideo();
+  message('videoAdminMessage','Vídeo principal removido da tela.','ok');
+  message('videoMessage','Vídeo principal removido da tela.','ok');
+ }catch(error){message('videoAdminMessage','Erro ao remover: '+error.message,'error');}
 }
 
 async function loadSharedVideo(){
- const preview=$('videoPreview'),hero=$('heroVideo');
  try{
-  const {data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
+  const{data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
   if(error)throw error;
   const raw=String(data?.valor||'').trim();
   if(!raw){showVideoPlaceholder();return;}
   let videoUrl=raw;
   if(!/^https?:\/\//i.test(raw)){
    const path=raw.replace(/^\/+/, '').replace(/^videos-radar\//,'');
-   try{
-    const {data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
-    if(!signedError&&signed?.signedUrl)videoUrl=signed.signedUrl;
-    else videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';
-   }catch(e){videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';}
+   const{data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
+   if(!signedError&&signed?.signedUrl)videoUrl=signed.signedUrl;
+   else videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';
   }
   if(!videoUrl){showVideoPlaceholder('Não foi possível localizar o arquivo no bucket videos-radar.');return;}
   displaySharedVideo(videoUrl);
  }catch(error){
   console.error('Erro ao carregar vídeo principal:',error);
-  showVideoPlaceholder('Erro ao consultar o vídeo: '+(error.message||'verifique a configuração.'));
+  showVideoPlaceholder('Não foi possível carregar o vídeo: '+(error.message||'verifique o Supabase.'));
  }
 }
 
 function showVideoPlaceholder(note='O vídeo aparecerá aqui quando for publicado.'){
- $('videoPreview').innerHTML=`<div class="video-placeholder">${esc(note)}</div>`;
- $('heroVideo').innerHTML=`<div class="video-placeholder">▶<b>10 DICAS PARA VENDER MAIS</b><small>${esc(note)}</small></div>`;
+ const html=`<div class="video-placeholder">▶<b>10 DICAS PARA VENDER MAIS</b><small>${esc(note)}</small></div>`;
+ ['videoPreview','heroVideo','adminVideoPreview'].forEach(id=>{const el=$(id);if(el)el.innerHTML=html;});
 }
 
 function displaySharedVideo(url){
  const safe=esc(url);
- const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;height:100%;max-height:420px;object-fit:contain;background:#000" src="${safe}" onerror="this.insertAdjacentHTML('afterend','<p class=\"muted\">O navegador não conseguiu abrir o arquivo. Confira o arquivo salvo no bucket videos-radar.</p>')"></video>`;
- $('videoPreview').innerHTML=videoHtml;
- $('heroVideo').innerHTML=videoHtml;
+ const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;height:100%;max-height:420px;object-fit:contain;background:#000" src="${safe}"></video>`;
+ ['videoPreview','heroVideo','adminVideoPreview'].forEach(id=>{const el=$(id);if(el)el.innerHTML=videoHtml;});
 }
 
 /* COMPARTILHAR RADAR */
@@ -1419,6 +1427,16 @@ function renderSalles(){
   <div class="content-card"><b>${esc(p.name)}</b><p>Etapa: ${esc(p.stage)}</p></div>`).join('');
 
  $('sallesReport').innerHTML=`<p>Produtos analisados: ${sallesProducts.length}</p><p>Palavras-chave: ${sallesKeywords.length}</p><p>Campanhas: ${sallesAds.length}</p>`;
+ const ranked=[...sallesProducts].map(p=>{
+  const price=numericValue(p.price),commission=numericValue(p.commission),sales=numericValue(p.sales),competition=numericValue(p.competition);
+  const rate=price>0?commission/price*100:0;
+  const score=Math.max(0,Math.min(100,Math.round(Math.min(rate,30)*1.5+Math.min(sales,5000)/5000*35+(competition<=20?25:competition<=100?12:0))));
+  let verdict=score>=70?'Oportunidade forte':score>=45?'Vale testar':'Precisa de mais validação';
+  let advice=competition<=20?'Concorrência informada baixa: teste um vídeo demonstrativo e acompanhe cliques e pedidos.':competition<=100?'Concorrência moderada/alta: diferencie o conteúdo com demonstração real, benefício claro e comparação.':'Informe a concorrência observada para melhorar a análise.';
+  if(!sales)advice+=' Ainda não há vendas informadas; valide a procura antes de investir em anúncios.';
+  return {...p,score,verdict,advice,rate};
+ }).sort((a,b)=>b.score-a.score);
+ $('sallesInsights').innerHTML=ranked.length?ranked.slice(0,6).map(p=>`<div class="content-card"><span class="pill hot">${p.verdict}</span><h3>${esc(p.name)}</h3><p><b>Índice estimado: ${p.score}/100</b></p><p>Comissão: ${money(p.commission)} (${p.rate.toFixed(1)}%) • Vendas informadas: ${p.sales} • Concorrência: ${p.competition}</p><p>${esc(p.advice)}</p></div>`).join(''):'<div class="empty">Cadastre produtos no Espião de produtos para gerar análises.</div>';
 }
 
 function saveSallesProduct(event){
