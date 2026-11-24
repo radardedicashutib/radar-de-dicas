@@ -97,13 +97,29 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 .demand-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .demand-heading h2{margin:0}
 .demand-subtitle{color:#b8c9df;font-size:13px;line-height:1.5}
-.category-grid{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:15px 0;padding:22px 14px;min-height:190px;border:1px solid #245b87;border-radius:20px;background:radial-gradient(circle at center,#123b62 0,#0a2340 42%,#07182f 78%)}
-.category-card{background:linear-gradient(145deg,#173f68,#0b203a);border:1px solid #3287bd;border-radius:999px;padding:15px 18px;text-align:center;min-width:150px;max-width:210px;box-shadow:0 5px 16px #0003;transition:.18s}
-.category-card strong{display:block;font-size:15px;color:white}
-.category-card span{display:block;font-size:11px;color:#c2d5e9;margin-top:5px}
-.category-card:hover{transform:translateY(-3px);border-color:#ffbd45;box-shadow:0 0 18px #08aaff44}
-.category-center{display:flex;align-items:center;justify-content:center;flex:0 0 136px;width:136px;height:136px;border-radius:50%;background:linear-gradient(135deg,#ff9a31,#f52983);border:4px solid #ffd16b;color:#fff;text-align:center;font-weight:950;font-size:14px;box-shadow:0 0 0 10px #ffb13a22,0 0 28px #ff9b3c66;padding:14px}
-@media(max-width:760px){.category-grid{gap:8px;padding:14px 8px}.category-card{min-width:125px;padding:12px 10px}.category-center{width:112px;height:112px;flex-basis:112px;font-size:12px}}
+.category-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(132px,auto));align-items:center;justify-items:center;gap:12px;margin:15px 0;padding:22px 14px;min-height:470px;border:1px solid #245b87;border-radius:20px;background:radial-gradient(circle at center,#173e62 0,#0b2745 45%,#07182f 82%);position:relative;isolation:isolate}
+.category-card{position:relative;z-index:2;background:linear-gradient(145deg,#e8e3ff,#d9e9f2);border:2px solid #27344b;border-radius:14px;padding:12px 14px;text-align:center;width:min(100%,190px);min-height:58px;color:#182338;box-shadow:0 4px 10px #0003;transition:.18s}
+.category-card strong{display:block;font-size:14px;color:#182338}
+.category-card span{display:block;font-size:10px;color:#40516b;margin-top:5px}
+.category-card:hover{transform:translateY(-3px);border-color:#ffbd45;box-shadow:0 0 18px #08aaff55}
+.category-card:nth-of-type(2){background:#fce9bf}
+.category-card:nth-of-type(3){background:#dcdcff}
+.category-card:nth-of-type(4){background:#d9f0ed}
+.category-card:nth-of-type(5){background:#f8d9d1}
+.category-card:nth-of-type(6){background:#d8edf8}
+.category-card:nth-of-type(7){background:#f7dafa}
+.category-card:nth-of-type(8){background:#e5e5f5}
+.category-card:nth-of-type(9){background:#f7e6d6}
+.category-center{grid-column:2;grid-row:2;display:flex;align-items:center;justify-content:center;width:142px;height:142px;border-radius:50%;background:linear-gradient(135deg,#ff9a31,#f52983);border:4px solid #ffd16b;color:#fff;text-align:center;font-weight:950;font-size:14px;box-shadow:0 0 0 10px #ffb13a22,0 0 28px #ff9b3c66;padding:14px;z-index:3}
+.category-card:nth-of-type(1){grid-column:1;grid-row:1}
+.category-card:nth-of-type(2){grid-column:2;grid-row:1}
+.category-card:nth-of-type(3){grid-column:3;grid-row:1}
+.category-card:nth-of-type(4){grid-column:3;grid-row:2}
+.category-card:nth-of-type(5){grid-column:3;grid-row:3}
+.category-card:nth-of-type(6){grid-column:2;grid-row:3}
+.category-card:nth-of-type(7){grid-column:1;grid-row:3}
+.category-card:nth-of-type(8){grid-column:1;grid-row:2}
+@media(max-width:760px){.category-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;min-height:0;padding:14px 8px}.category-center{grid-column:1/-1;grid-row:1;width:112px;height:112px}.category-card:nth-of-type(n){grid-column:auto;grid-row:auto}.category-card{width:100%;min-height:62px;padding:10px 7px}}
 .category-card.best{border:1px solid #ff9c35;background:linear-gradient(145deg,#633a1b,#281d2a)}
 .category-card.best strong{color:#ffbd68}
 /* RADAR RADIAL DE CATEGORIAS */
@@ -826,9 +842,9 @@ function opportunityHtml(p){
 function competitionLevel(value){
  const n=numericValue(value);
  if(value===null||value===undefined||value==='')return 'Não informada';
- if(n<=20)return 'Baixa';
- if(n<=100)return 'Média';
- return 'Alta';
+ if(n<=20)return 'Poucos afiliados postando';
+ if(n<=100)return 'Concorrência moderada';
+ return 'Muitos afiliados postando';
 }
 
 /* CARTÃO DO PRODUTO — usado em todas as listas do Radar */
@@ -1622,7 +1638,15 @@ function renderDemandRadar(){
  const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
  const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
  const overview=$('categoryOverview');
- if(overview)overview.innerHTML=ranked.length?`<div class="category-center">RADAR<br>DE DEMANDA</div>`+ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(overview){
+  if(!ranked.length){overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';}
+  else{
+   const nodes=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join('');
+   overview.innerHTML=nodes.slice(0,8).length?nodes.slice(0,8):'';
+   overview.insertAdjacentHTML('afterbegin','<div class="category-center">RADAR<br>DE DEMANDA</div>');
+   if(ranked.length>8)overview.insertAdjacentHTML('beforeend',ranked.slice(8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join(''));
+  }
+ }
  const ranking=$('categoryRanking');
  if(ranking)ranking.innerHTML='';
  const highlight=$('categoryHighlight');
@@ -1766,4 +1790,4 @@ initializeRadar();
 
 </script>
 </body>
- </html>
+                 </html>
