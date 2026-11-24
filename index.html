@@ -122,14 +122,36 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 @media(max-width:760px){.category-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:auto;min-height:0;padding:14px 8px}.category-center{grid-column:1/-1;grid-row:1;width:112px;height:112px}.category-card:nth-of-type(n){grid-column:auto;grid-row:auto}.category-card{width:100%;min-height:62px;padding:10px 7px}}
 .category-card.best{border:1px solid #ff9c35;background:linear-gradient(145deg,#633a1b,#281d2a)}
 .category-card.best strong{color:#ffbd68}
-/* AJUSTE: todas as categorias visíveis no painel radial */
-#categoryOverview{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;min-height:300px;padding:24px 16px}
-#categoryOverview .category-center{order:0;flex:0 0 142px;grid-column:auto;grid-row:auto}
-#categoryOverview .category-card{flex:1 1 150px;max-width:190px;min-width:130px;grid-column:auto!important;grid-row:auto!important}
+/* MAPA RADIAL: categorias distribuídas ao redor do círculo central */
+#categoryOverview{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(3,minmax(76px,auto));align-items:center;justify-items:center;gap:14px 12px;min-height:300px;padding:24px 18px;border:1px solid #245b87;border-radius:20px;background:radial-gradient(circle at center,#123b62 0,#0a2340 48%,#07182f 82%);}
+#categoryOverview .category-center{grid-column:3;grid-row:2;display:flex;align-items:center;justify-content:center;width:132px;height:132px;border-radius:50%;background:linear-gradient(135deg,#ff9a31,#f52983);border:4px solid #ffd16b;color:#fff;text-align:center;font-weight:950;font-size:14px;line-height:1.35;box-shadow:0 0 0 10px #ffb13a22,0 0 28px #ff9b3c66;padding:14px;z-index:3;}
+#categoryOverview .category-card{width:100%;max-width:190px;min-width:0;min-height:68px;padding:12px 9px;border-radius:16px;background:linear-gradient(145deg,#e1e9fa,#d5e5f4);color:#15243a;border:1px solid #8298b9;box-shadow:0 5px 16px #0004;}
+#categoryOverview .category-card strong{display:block;font-size:14px;color:#15243a}
+#categoryOverview .category-card span{display:block;font-size:10px;color:#425675;margin-top:5px}
+#categoryOverview .category-card:nth-child(2){grid-column:2;grid-row:1}
+#categoryOverview .category-card:nth-child(3){grid-column:3;grid-row:1}
+#categoryOverview .category-card:nth-child(4){grid-column:4;grid-row:1}
+#categoryOverview .category-card:nth-child(5){grid-column:1;grid-row:2}
+#categoryOverview .category-card:nth-child(6){grid-column:5;grid-row:2}
+#categoryOverview .category-card:nth-child(7){grid-column:1;grid-row:3}
+#categoryOverview .category-card:nth-child(8){grid-column:2;grid-row:3}
+#categoryOverview .category-card:nth-child(9){grid-column:3;grid-row:3}
+#categoryOverview .category-card:nth-child(10){grid-column:4;grid-row:3}
+#categoryOverview .category-card:nth-child(11){grid-column:5;grid-row:3}
 @media(max-width:760px){
- #categoryOverview{min-height:0;padding:16px 10px;gap:9px}
- #categoryOverview .category-center{flex-basis:112px;width:112px;height:112px}
- #categoryOverview .category-card{flex:1 1 130px;min-width:120px}
+ #categoryOverview{grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(5,minmax(68px,auto));gap:9px 7px;padding:14px 8px;min-height:0}
+ #categoryOverview .category-center{grid-column:2;grid-row:3;width:104px;height:104px;font-size:12px}
+ #categoryOverview .category-card{min-height:62px;padding:8px 5px}
+ #categoryOverview .category-card:nth-child(2){grid-column:1;grid-row:1}
+ #categoryOverview .category-card:nth-child(3){grid-column:2;grid-row:1}
+ #categoryOverview .category-card:nth-child(4){grid-column:3;grid-row:1}
+ #categoryOverview .category-card:nth-child(5){grid-column:1;grid-row:2}
+ #categoryOverview .category-card:nth-child(6){grid-column:3;grid-row:2}
+ #categoryOverview .category-card:nth-child(7){grid-column:1;grid-row:3}
+ #categoryOverview .category-card:nth-child(8){grid-column:3;grid-row:3}
+ #categoryOverview .category-card:nth-child(9){grid-column:1;grid-row:4}
+ #categoryOverview .category-card:nth-child(10){grid-column:2;grid-row:4}
+ #categoryOverview .category-card:nth-child(11){grid-column:3;grid-row:4}
 }
 /* RADAR RADIAL DE CATEGORIAS */
 #categoryRanking{position:relative;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:12px;min-height:170px;padding:22px 12px;margin:12px 0;border:1px solid #245b87;border-radius:20px;background:radial-gradient(circle at center,#123b62 0,#0a2340 42%,#07182f 78%);overflow:hidden}
@@ -849,10 +871,8 @@ function opportunityHtml(p){
 }
 
 function competitionLevel(value){
- const n=numericValue(value);
- if(value===null||value===undefined||value==='')return 'Não informada';
- if(n<=20)return 'Muitos afiliados divulgando';
- if(n<=100)return 'Concorrência moderada';
+ // Os produtos deste Radar são selecionados pelo administrador por terem pouca concorrência.
+ // Portanto, a etiqueta exibida deve refletir esse critério de curadoria, não o número bruto.
  return 'Poucos afiliados divulgando';
 }
 
@@ -1649,7 +1669,7 @@ function renderDemandRadar(){
  const overview=$('categoryOverview');
  if(overview){
   const nodes=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join('');
-  overview.innerHTML='<div class="category-center">RADAR<br>DE DEMANDA</div>'+nodes;
+  overview.innerHTML='<div class="category-center">MAIS<br>PROCURADOS</div>'+nodes;
  }
  const ranking=$('categoryRanking');
  if(ranking){
