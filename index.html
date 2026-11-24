@@ -97,7 +97,28 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 .demand-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .demand-heading h2{margin:0}
 .demand-subtitle{color:#b8c9df;font-size:13px;line-height:1.5}
-.category-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}
+.category-grid{display:block;margin:18px 0}
+.category-map{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:repeat(3,minmax(116px,auto));gap:12px;max-width:920px;margin:0 auto;padding:12px;position:relative;isolation:isolate}
+.category-map:before{content:"";position:absolute;inset:12%;z-index:-1;background:linear-gradient(90deg,transparent 49.7%,#5d86b8 49.9%,#5d86b8 50.1%,transparent 50.3%),linear-gradient(0deg,transparent 49.7%,#5d86b8 49.9%,#5d86b8 50.1%,transparent 50.3%);opacity:.45}
+.category-hub{grid-column:2;grid-row:2;align-self:center;justify-self:center;width:min(100%,190px);aspect-ratio:1;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18px;background:radial-gradient(circle at 35% 25%,#245b91,#071a35 72%);border:3px solid #d7eaff;box-shadow:0 0 0 7px #1d5b8a55,0 12px 30px #0007;font-weight:950;font-size:18px}
+.category-hub small{display:block;color:#b8d9f5;font-size:11px;margin-top:6px}
+.category-node{min-height:104px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;border:1px solid #5594c5;border-radius:18px;padding:12px;text-align:center;color:#fff;box-shadow:0 8px 20px #0003;transition:transform .18s,filter .18s;position:relative}
+.category-node:hover{transform:translateY(-3px) scale(1.02);filter:brightness(1.12)}
+.category-node .node-icon{font-size:25px;line-height:1}
+.category-node strong{font-size:15px}.category-node small{font-size:11px;color:#e1edfa}
+.category-node:nth-of-type(1){grid-column:2;grid-row:1;background:linear-gradient(145deg,#5141a8,#292b68)}
+.category-node:nth-of-type(2){grid-column:3;grid-row:1;background:linear-gradient(145deg,#087d80,#124a62)}
+.category-node:nth-of-type(3){grid-column:3;grid-row:2;background:linear-gradient(145deg,#b75b3e,#68354a)}
+.category-node:nth-of-type(4){grid-column:3;grid-row:3;background:linear-gradient(145deg,#1674a5,#17436d)}
+.category-node:nth-of-type(5){grid-column:2;grid-row:3;background:linear-gradient(145deg,#a33d9c,#552e77)}
+.category-node:nth-of-type(6){grid-column:1;grid-row:3;background:linear-gradient(145deg,#b06d24,#68431e)}
+.category-node:nth-of-type(7){grid-column:1;grid-row:2;background:linear-gradient(145deg,#25804f,#174d43)}
+.category-node:nth-of-type(8){grid-column:1;grid-row:1;background:linear-gradient(145deg,#3475b6,#24416f)}
+.category-node:nth-of-type(n+9){display:none}
+.category-node.selected{outline:3px solid #ffce68;outline-offset:2px}
+.category-map-empty{padding:24px;text-align:center;color:#b9cce1}
+#categoryRanking{display:none}
+.content-card video{display:block;width:100%;max-width:100%;height:auto;min-height:220px;max-height:420px;aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:12px}
 .category-card{background:linear-gradient(145deg,#173b60,#0b203a);border:1px solid #32668e;border-radius:14px;padding:13px;text-align:center;min-width:0}
 .category-card strong{display:block;font-size:15px;color:white}
 .category-card span{display:block;font-size:11px;color:#b8c9df;margin-top:5px}
@@ -133,7 +154,7 @@ header button{font-size:12px;padding:11px 8px}
 .filters{grid-template-columns:1fr 1fr}
 .products{grid-template-columns:1fr}
 .plans{grid-template-columns:1fr 1fr}
-.category-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.category-map{grid-template-rows:repeat(3,minmax(92px,auto));gap:7px;padding:4px}.category-node{min-height:88px;padding:7px;border-radius:13px}.category-node strong{font-size:12px}.category-node small{font-size:10px}.category-node .node-icon{font-size:20px}.category-hub{width:min(100%,130px);font-size:14px;padding:10px}.category-hub small{font-size:9px}
 .recommendation-list{grid-template-columns:1fr}
 }
 @media(max-width:420px){
@@ -214,6 +235,7 @@ main{padding:0 11px}
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
+<section id="radar" class="section active">
 <div class="panel">
 <div class="demand-heading">
 <h2>🏆 O que mais vende</h2>
@@ -225,8 +247,7 @@ main{padding:0 11px}
 <h3>🔥 Destaque de vendas</h3>
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
 </div>
-<div class="section-label">Categorias com produtos cadastrados</div>
-<div id="categoryRanking"></div>
+<div id="categoryRanking" aria-hidden="true"></div>
 </div>
 <div class="panel">
 <div class="demand-heading">
@@ -453,21 +474,21 @@ function commissionPercent(p){
 }
 
 function showTab(name){
- if(name==='salles'&&!isAdmin&&!hasPaidMembership){
-  alert('O Salles IA é exclusivo para assinantes pagos ativos.');
-  return;
- }
+ if(name==='salles'&&!isAdmin&&!hasPaidMembership){alert('O Salles IA é exclusivo para assinantes pagos ativos.');return;}
  if(name==='admin'&&!isAdmin)return;
- document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
- document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
  const section=$(name);
- if(section)section.classList.add('active');
+ if(!section){console.warn('Seção não encontrada:',name);return;}
+ document.querySelectorAll('#appArea .section').forEach(s=>s.classList.remove('active'));
+ document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+ section.classList.add('active');
+ if(name==='radar'){renderProducts();renderDemandRadar();}
  if(name==='salvos')renderSaved();
  if(name==='mais')renderBest();
  if(name==='semvendas')loadZeroSalesProducts();
  if(name==='tendencias')renderTrends();
  if(name==='admin'&&isAdmin)loadAdminData();
  if(name==='salles'&&(isAdmin||hasPaidMembership))renderSalles();
+ if(name==='video')loadSharedVideo();
 }
 
 function switchAccount(){
@@ -812,11 +833,11 @@ function opportunityHtml(p){
 }
 
 function competitionLevel(value){
+ if(value===null||value===undefined||String(value).trim()==='')return 'Não informada';
  const n=numericValue(value);
- if(value===null||value===undefined||value==='')return 'Não informada';
- if(n<=20)return 'Baixa';
- if(n<=100)return 'Média';
- return 'Alta';
+ if(n<=20)return 'Poucos afiliados postando';
+ if(n<=100)return 'Alguns afiliados postando';
+ return 'Muitos afiliados postando';
 }
 
 /* CARTÃO DO PRODUTO — usado em todas as listas do Radar */
@@ -840,7 +861,7 @@ function productCard(p){
    <div><b>${sales}</b><small>Vendas</small></div>
    <div><b>${commission?commission.toFixed(1)+'%':'—'}</b><small>Comissão (%)</small></div>
    <div><b>${commissionValue}</b><small>Comissão (R$)</small></div>
-   <div><b>${esc(competition)}</b><small>Concorrência</small></div>
+   <div><b>${esc(competition)}</b><small>Afiliados postando</small></div>
    <div><b>${esc(p.tendencia||'—')}</b><small>Tendência</small></div>
   </div>
   ${p.opportunityScore!==undefined?opportunityHtml(p):''}
@@ -1123,10 +1144,19 @@ function renderPrompts(){
 async function resolveTutorialVideo(p){
  const raw=String(p.video_url||p.storage_path||p.url_video||p.arquivo||'').trim();
  if(!raw)return '';
- if(/^https?:\/\//i.test(raw))return raw;
- const path=String(p.storage_path||raw).replace(/^\/+/, '').replace(/^radar-ugc-videos\//,'');
+ let path=String(p.storage_path||raw).replace(/^\/+/, '').replace(/^radar-ugc-videos\//,'');
+ if(/^https?:\/\//i.test(raw)){
+  try{
+   const u=new URL(raw);
+   const marker='/storage/v1/object/sign/radar-ugc-videos/';
+   const publicMarker='/storage/v1/object/public/radar-ugc-videos/';
+   if(u.pathname.includes(marker))path=decodeURIComponent(u.pathname.split(marker)[1]||'');
+   else if(u.pathname.includes(publicMarker))return raw;
+   else return raw;
+  }catch(e){return raw;}
+ }
  try{
-  const {data,error}=await db.storage.from('radar-ugc-videos').createSignedUrl(path,3600);
+  const {data,error}=await db.storage.from('radar-ugc-videos').createSignedUrl(path,21600);
   if(!error&&data?.signedUrl)return data.signedUrl;
  }catch(e){console.warn('Link assinado UGC:',e);}
  try{
@@ -1146,7 +1176,7 @@ async function renderTutorials(){
   target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
   const cards=await Promise.all(rows.map(async p=>{
    const videoUrl=await resolveTutorialVideo(p);
-   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
+   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" controlsList="nodownload" style="display:block;width:100%;max-width:100%;height:auto;min-height:220px;aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:12px"><source src="${esc(videoUrl)}">Seu navegador não conseguiu reproduzir este vídeo. Tente abrir em outro navegador.</video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
   }));
   target.innerHTML=cards.join('');
  }
@@ -1591,7 +1621,7 @@ function renderProducts(){
   ((p.nome||'')+' '+(p.categoria||'')).toLowerCase().includes(q)&&
   (c==='all'||commissionPercent(p)>20)&&
   (k==='all'||(k==='popular'&&numericValue(p.vendas)>0))&&
-  (cat==='all'||p.categoria===cat)
+  (cat==='all'||String(p.categoria||'').toLocaleLowerCase('pt-BR')===String(cat).toLocaleLowerCase('pt-BR'))
  );
  if(k==='popular')list.sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
  const container=$('productList');
@@ -1602,21 +1632,24 @@ function renderProducts(){
 
 function renderDemandRadar(){
  const source=(manualProducts||[]).length?manualProducts:(products||[]);
- const total=source.length;
  const categories={};
  source.forEach(p=>{const name=String(p.categoria||'Outros').trim()||'Outros';categories[name]=(categories[name]||0)+1;});
  const ranked=Object.entries(categories).sort((a,b)=>b[1]-a[1]);
  const bySales=[...source].sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
- const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
- const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
  const overview=$('categoryOverview');
- if(overview)overview.innerHTML=ranked.length?ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver lista</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ const icons={'Pet':'🐾','Moda':'👕','Saúde':'💚','Acessórios':'💍','Beleza':'💄','Casa':'🏠','Infantil':'🧸','Cozinha':'🍳','Tech':'📱','Eletrônicos':'🔌','Fitness':'🏋️','Esportes':'⚽','Outros':'✨','Shopee':'🛍️'};
+ if(overview){
+  if(ranked.length){
+   const nodes=ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-node" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><span class="node-icon">${icons[name]||'📦'}</span><strong>${esc(name)}</strong><small>${count} produto(s) • Ver produtos</small></button>`).join('');
+   overview.innerHTML=`<div class="category-map">${nodes}<div class="category-hub">🏆 O QUE MAIS VENDE<small>${source.length} produtos cadastrados</small></div></div>`;
+  }else overview.innerHTML='<div class="category-map-empty">Nenhuma categoria cadastrada.</div>';
+ }
  const ranking=$('categoryRanking');
- if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" style="width:100%;margin:4px 0" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(ranking)ranking.innerHTML='';
  const highlight=$('categoryHighlight');
  if(highlight){
   if(bySales.length&&numericValue(bySales[0].vendas)>0){const p=bySales[0];highlight.innerHTML=`<b class="highlight">${esc(p.nome)}</b><p>${numericValue(p.vendas).toLocaleString('pt-BR')} vendas informadas • ${esc(p.categoria||'Outros')}</p><button class="soft" type="button" onclick="showTab('mais')">Ver produtos mais vendidos</button>`;}
-  else highlight.textContent=total?'Há produtos cadastrados, mas nenhum possui vendas positivas informadas.':'Nenhum produto cadastrado.';
+  else highlight.textContent=source.length?'Há produtos cadastrados, mas nenhum possui vendas positivas informadas.':'Nenhum produto cadastrado.';
  }
  const weekly=$('weeklyRecommendations');
  if(weekly){
@@ -1629,7 +1662,14 @@ function renderDemandRadar(){
 }
 
 function filterByCategory(category){
- showTab('radar'); $('category').value=category; $('commission').value='all'; renderProducts(); $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+ showTab('radar');
+ $('q').value='';$('commission').value='all';$('competition').value='all';
+ const select=$('category');
+ let option=[...select.options].find(o=>o.value.toLocaleLowerCase('pt-BR')===String(category).toLocaleLowerCase('pt-BR')||o.textContent.toLocaleLowerCase('pt-BR')===String(category).toLocaleLowerCase('pt-BR'));
+ if(!option){option=document.createElement('option');option.value=category;option.textContent=category;select.appendChild(option);}
+ select.value=option.value;
+ renderProducts();
+ $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function showProductInRadar(id){
  showTab('radar'); $('q').value=''; $('commission').value='all'; $('category').value='all'; renderProducts();
