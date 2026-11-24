@@ -97,10 +97,13 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 .demand-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .demand-heading h2{margin:0}
 .demand-subtitle{color:#b8c9df;font-size:13px;line-height:1.5}
-.category-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}
-.category-card{background:linear-gradient(145deg,#173b60,#0b203a);border:1px solid #32668e;border-radius:14px;padding:13px;text-align:center;min-width:0}
+.category-grid{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:12px;margin:15px 0;padding:22px 14px;min-height:190px;border:1px solid #245b87;border-radius:20px;background:radial-gradient(circle at center,#123b62 0,#0a2340 42%,#07182f 78%)}
+.category-card{background:linear-gradient(145deg,#173f68,#0b203a);border:1px solid #3287bd;border-radius:999px;padding:15px 18px;text-align:center;min-width:150px;max-width:210px;box-shadow:0 5px 16px #0003;transition:.18s}
 .category-card strong{display:block;font-size:15px;color:white}
-.category-card span{display:block;font-size:11px;color:#b8c9df;margin-top:5px}
+.category-card span{display:block;font-size:11px;color:#c2d5e9;margin-top:5px}
+.category-card:hover{transform:translateY(-3px);border-color:#ffbd45;box-shadow:0 0 18px #08aaff44}
+.category-center{display:flex;align-items:center;justify-content:center;flex:0 0 136px;width:136px;height:136px;border-radius:50%;background:linear-gradient(135deg,#ff9a31,#f52983);border:4px solid #ffd16b;color:#fff;text-align:center;font-weight:950;font-size:14px;box-shadow:0 0 0 10px #ffb13a22,0 0 28px #ff9b3c66;padding:14px}
+@media(max-width:760px){.category-grid{gap:8px;padding:14px 8px}.category-card{min-width:125px;padding:12px 10px}.category-center{width:112px;height:112px;flex-basis:112px;font-size:12px}}
 .category-card.best{border:1px solid #ff9c35;background:linear-gradient(145deg,#633a1b,#281d2a)}
 .category-card.best strong{color:#ffbd68}
 /* RADAR RADIAL DE CATEGORIAS */
@@ -1303,7 +1306,7 @@ async function loadVideo(source='video'){
  if(!file.type.startsWith('video/')){message(source==='admin'?'videoAdminMessage':'videoMessage','O arquivo selecionado não parece ser um vídeo.','error');return;}
  const statusId=source==='admin'?'videoAdminMessage':'videoMessage';
  message(statusId,'Enviando vídeo para o Supabase...');
- const safeName=file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
+ const safeName=file.name.normalize('NFD').replace(/[\\u0300-\\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_');
  const path='principal-'+Date.now()+'-'+safeName;
  try{
   const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
@@ -1361,7 +1364,7 @@ function getMainVideoStoragePath(value){
 async function loadSharedVideo(){
  try{
   // O vídeo de boas-vindas é liberado para administrador, teste grátis ativo e plano pago ativo.
-  if(!currentUser||(!isAdmin&&!hasActiveMembership&&!hasTrialAccess)){
+  if(!currentUser||(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)){
    showVideoPlaceholder('Entre com uma conta com acesso ativo para assistir ao vídeo de boas-vindas.');
    return;
   }
@@ -1619,9 +1622,9 @@ function renderDemandRadar(){
  const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
  const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
  const overview=$('categoryOverview');
- if(overview)overview.innerHTML=ranked.length?ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver lista</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(overview)overview.innerHTML=ranked.length?`<div class="category-center">RADAR<br>DE DEMANDA</div>`+ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
  const ranking=$('categoryRanking');
- if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(ranking)ranking.innerHTML='';
  const highlight=$('categoryHighlight');
  if(highlight){
   if(bySales.length&&numericValue(bySales[0].vendas)>0){const p=bySales[0];highlight.innerHTML=`<b class="highlight">${esc(p.nome)}</b><p>${numericValue(p.vendas).toLocaleString('pt-BR')} vendas informadas • ${esc(p.categoria||'Outros')}</p><button class="soft" type="button" onclick="showTab('mais')">Ver produtos mais vendidos</button>`;}
