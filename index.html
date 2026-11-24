@@ -180,14 +180,16 @@ main{padding:0 11px}
 <b>Importante:</b> os dados de vendas, comissão e concorrência dependem das informações disponíveis. No teste grátis, a busca automática na Shopee fica bloqueada; os produtos demonstrativos são cadastrados pelo administrador. O Radar atualiza os dados sincronizados a cada 6 horas quando a rotina de integração estiver configurada. O Índice de Oportunidade é uma estimativa, não garantia de vendas.
 </div>  <section class="authbox panel" id="authPanel">
 <h2>Acesse sua conta</h2>
-<p class="muted">Crie sua conta com nome completo, e-mail e CPF. O teste grátis começa após a confirmação do e-mail.</p>
+<p class="muted" id="authIntro">Entre com seu e-mail e senha. Novos assinantes devem criar uma conta com nome completo e CPF para ativar o teste grátis de 3 dias após confirmar o e-mail.</p>
+<div id="subscriberFields" class="hidden">
 <label>Nome completo<input id="authFullName" type="text" autocomplete="name" placeholder="Seu nome completo"></label>
-<label style="display:block;margin-top:9px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></label>
 <label style="display:block;margin-top:9px">CPF<input id="authCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label>
-<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"></label>
+</div>
+<label style="display:block;margin-top:9px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com" oninput="updateAuthMode()"></label>
+<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="current-password" placeholder="Sua senha"></label>
 <div class="row">
 <button class="primary" onclick="signIn()">Entrar</button>
-<button class="soft" onclick="signUp()">Criar conta</button>
+<button class="soft" id="createAccountButton" onclick="signUp()">Criar conta</button>
 </div>
 <div class="row"><button class="soft" onclick="resetPassword()">Esqueci minha senha</button></div>
 <div id="authMessage" class="statusline"></div>
@@ -405,6 +407,7 @@ main{padding:0 11px}
 const SUPABASE_URL='https://uwdhjiuufrsjqcbgtoyn.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_XZG-ucLX-b4eq7kCu-cfAA_JctKNxZY';
 const ADMIN_USER_ID='df77bfd4-2f65-4026-9b79-26224bc128ea';
+const ADMIN_EMAIL='geesportesrusticorustico@gmail.com';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 let currentUser=null;
@@ -469,6 +472,16 @@ function switchAccount(){
  }
 }
 
+function updateAuthMode(){
+ const email=String($('authEmail')?.value||'').trim().toLowerCase();
+ const isAdminEmail=email===ADMIN_EMAIL;
+ $('subscriberFields')?.classList.toggle('hidden',isAdminEmail);
+ $('createAccountButton')?.classList.toggle('hidden',isAdminEmail);
+ $('authIntro').textContent=isAdminEmail
+  ?'Acesso administrativo: entre somente com o e-mail e a senha já cadastrados.'
+  :'Entre com seu e-mail e senha. Novos assinantes devem criar uma conta com nome completo e CPF para ativar o teste grátis de 3 dias após confirmar o e-mail.';
+}
+
 async function signIn(){
  const email=$('authEmail').value.trim();
  const password=$('authPassword').value;
@@ -510,10 +523,11 @@ function validCpf(value){
  return d2===Number(cpf[10]);
 }
 async function signUp(){
- const fullName=$('authFullName').value.trim();
+ const fullName=$('authFullName')?.value.trim()||'';
  const email=$('authEmail').value.trim();
- const cpf=normalizeCpf($('authCpf').value);
+ const cpf=normalizeCpf($('authCpf')?.value||'');
  const password=$('authPassword').value;
+ if(email.toLowerCase()===ADMIN_EMAIL){message('authMessage','A conta administrativa deve usar somente Entrar.','error');return;}
  if(fullName.length<3){message('authMessage','Informe seu nome completo.','error');return;}
  if(!email||!validCpf(cpf)||password.length<6){
   message('authMessage','Confira o e-mail, informe um CPF válido e use uma senha com pelo menos 6 caracteres.','error');return;
@@ -673,10 +687,11 @@ async function checkMembership(){
 
 async function loadProducts(){
  const productFields='*';
- const{data,error}=await db.from('produtos').select(productFields).eq('ativo',true).order('criado_em',{ascending:false});
+ const{data,error}=await db.from('produtos').select(productFields).order('criado_em',{ascending:false});
  if(error){
   console.error('Erro ao carregar produtos:',error);
   manualProducts=[];
+  if($('appMessage'))message('appMessage','Não foi possível carregar os produtos do Supabase: '+error.message,'error');
  }else{
   manualProducts=(data||[]).map(p=>({...p,taxaComissao:p.taxa_comissao??p.taxaComissao,origem:'manual'}));
  }
@@ -1309,8 +1324,9 @@ function showVideoPlaceholder(){
 
 function displaySharedVideo(url){
  const safe=esc(url);
- $('videoPreview').innerHTML=`<video controls playsinline src="${safe}"></video>`;
- $('heroVideo').innerHTML=`<video controls playsinline src="${safe}"></video>`;
+ const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;max-height:420px;background:#000;border-radius:12px" src="${safe}" onerror="this.insertAdjacentHTML('afterend','<p class=\"muted\">Não foi possível abrir este vídeo. Verifique se o arquivo está público no bucket videos-radar e se o endereço salvo em radar_config está correto.</p>')"></video>`;
+ $('videoPreview').innerHTML=videoHtml;
+ $('heroVideo').innerHTML=videoHtml;
 }
 
 /* COMPARTILHAR RADAR */
@@ -1658,6 +1674,7 @@ function updateStats(){
  }
 }
 
+updateAuthMode();
 initializeRadar();
 
 </script>
