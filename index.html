@@ -621,56 +621,43 @@ async function checkMembership(){
   hasActiveMembership=true;
   hasPaidMembership=true;
  }else{
-  // Primeiro verifica o teste CPF. Um teste ativo nunca deve ser confundido
-  // com uma assinatura paga para liberar o módulo Salles IA.
-  try{
-   const{data:trialData,error:trialError}=await db.rpc('radar_verificar_teste_cpf');
-   if(!trialError&&trialData?.ativo===true)hasTrialAccess=true;
-  }catch(error){console.warn('Verificação de teste por CPF:',error);}
-
-  // A fonte principal para identificar plano pago é radar_assinaturas.
-  // Procura qualquer assinatura paga ainda válida, não apenas a primeira linha.
-  let explicitPaidPlan=false;
-  try{
-   const{data,error}=await db.from('radar_assinaturas')
-    .select('plano,status,data_expiracao')
-    .eq('user_id',currentUser.id)
-    .eq('status','active');
-   if(error)throw error;
-   explicitPaidPlan=(data||[]).some(sub=>{
-    const plan=String(sub.plano||'').toLowerCase();
-    const isTrialPlan=plan.includes('teste')||plan.includes('gratis')||plan.includes('grátis');
-    const expires=sub.data_expiracao?new Date(sub.data_expiracao):null;
-    const valid=!expires||expires>new Date();
-    return valid&&!isTrialPlan;
-   });
-  }catch(error){console.warn('Consulta de planos em radar_assinaturas:',error);}
-
-  // Compatibilidade com assinantes pagos antigos: usa a RPC como alternativa,
-  // mas não permite que ela transforme uma conta identificada como teste em PRO.
-  let legacyPaid=false;
   try{
    const{data,error}=await db.rpc('radar_is_paid_member',{p_user:currentUser.id});
    if(error)throw error;
-   legacyPaid=data===true;
-  }catch(error){console.warn('Verificação de assinatura legada:',error);}
-
-  hasPaidMembership=explicitPaidPlan||(!hasTrialAccess&&legacyPaid);
-  hasActiveMembership=hasPaidMembership||hasTrialAccess;
+   hasPaidMembership=data===true;
+   hasActiveMembership=hasPaidMembership;
+  }catch(error){
+   console.error('Erro ao verificar assinatura:',error);
+  }
+  try{
+   const{data:trialData,error:trialError}=await db.rpc('radar_verificar_teste_cpf');
+   if(!trialError&&trialData?.ativo){hasTrialAccess=true;hasActiveMembership=true;}
+  }catch(error){console.warn('Verificação de teste por CPF:',error);}
+  try{
+   const{data,error}=await db.from('radar_assinaturas').select('*').eq('user_id',currentUser.id).eq('status','active').order('criado_em',{ascending:false}).limit(1);
+   if(!error&&data?.length){
+    const sub=data[0];
+    const expires=sub.data_expiracao?new Date(sub.data_expiracao):null;
+    const valid=!expires||expires>new Date();
+    const isTrial=String(sub.plano||'').toLowerCase().includes('teste');
+    if(valid&&isTrial)hasTrialAccess=true;
+    if(valid&&!isTrial)hasPaidMembership=true;
+    hasActiveMembership=hasPaidMembership||hasTrialAccess;
+   }
+  }catch(error){
+   console.warn('Verificação de teste:',error);
+  }
  }
  $('membership').textContent=isAdmin?'Administrador':hasPaidMembership?'Assinatura paga ativa':hasTrialAccess?'Teste grátis ativo':'Sem assinatura ativa';
  $('adminTab').classList.toggle('hidden',!isAdmin);
  $('sallesTab').classList.toggle('hidden',!isAdmin&&!hasPaidMembership);
  $('videoAdminControls').classList.toggle('hidden',!isAdmin);
- $('mainVideoAdminControls')?.classList.toggle('hidden',!isAdmin);
+  $('mainVideoAdminControls')?.classList.toggle('hidden',!isAdmin);
  if(!isAdmin&&!hasPaidMembership&&!hasTrialAccess){
   message('appMessage','Seu acesso está limitado. Escolha um plano para continuar.','error');
  }else{
-  message('appMessage',hasTrialAccess&&!hasPaidMembership?'Teste grátis ativo: acesso completo por 3 dias. O Salles IA é exclusivo dos planos pagos.':'Acesso autorizado.','ok');
+  message('appMessage','Acesso autorizado.','ok');
  }
- // Se uma aba PRO ficou aberta de uma sessão anterior, retorna ao Radar para
- // impedir que a tela do Salles permaneça visível durante o teste.
- if(!isAdmin&&!hasPaidMembership&&$('salles')?.classList.contains('active'))showTab('radar');
 }
 
 async function loadProducts(){
@@ -690,11 +677,10 @@ async function loadProducts(){
   if(isAdmin)message('appMessage',manualProducts.length+' produto(s) carregado(s) do cadastro.','ok');
  }catch(error){
   console.error('Erro ao carregar produtos:',error);
-  // Não apresenta um painel vazio como se não existissem produtos quando o
-  // banco recusou a consulta (por exemplo, por uma política RLS).
+  // Não apaga da memória uma lista que já tenha sido carregada anteriormente.
   if(!manualProducts.length)manualProducts=[];
   products=[...shopeeProducts,...manualProducts];
-  message('appMessage','Não foi possível carregar os produtos do banco: '+(error.message||'verifique as permissões de leitura (RLS) da tabela produtos.'),'error');
+  if(isAdmin)message('appMessage','Falha ao consultar produtos: '+(error.message||'erro desconhecido')+'. Os registros do banco não foram alterados.','error');
  }
  renderProducts();
  renderBest();
