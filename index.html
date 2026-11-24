@@ -615,17 +615,28 @@ async function checkMembership(){
 }
 
 async function loadProducts(){
- const productFields='*';
- const{data,error}=await db.from('produtos').select(productFields).eq('ativo',true).order('criado_em',{ascending:false});
- if(error){
+ // Busca todos os registros sem filtrar por 'ativo': produtos antigos também devem aparecer.
+ // A ordenação é feita no navegador para não depender de um nome específico de coluna de data.
+ try{
+  const {data,error}=await db.from('produtos').select('*');
+  if(error)throw error;
+  const rows=Array.isArray(data)?data:[];
+  rows.sort((a,b)=>{
+   const da=new Date(a.criado_em||a.created_at||a.createdAt||0).getTime()||0;
+   const dbb=new Date(b.criado_em||b.created_at||b.createdAt||0).getTime()||0;
+   return dbb-da;
+  });
+  manualProducts=rows.map(p=>({...p,taxaComissao:p.taxa_comissao??p.taxaComissao??p.commission_rate??p.commissionRate,origem:'manual'}));
+  products=[...shopeeProducts,...manualProducts];
+  if(isAdmin)message('appMessage',manualProducts.length+' produto(s) carregado(s) do cadastro.','ok');
+ }catch(error){
   console.error('Erro ao carregar produtos:',error);
-  manualProducts=[];
- }else{
-  manualProducts=(data||[]).map(p=>({...p,taxaComissao:p.taxa_comissao??p.taxaComissao,origem:'manual'}));
+  // Não apaga da memória uma lista que já tenha sido carregada anteriormente.
+  if(!manualProducts.length)manualProducts=[];
+  products=[...shopeeProducts,...manualProducts];
+  if(isAdmin)message('appMessage','Falha ao consultar produtos: '+(error.message||'erro desconhecido')+'. Os registros do banco não foram alterados.','error');
  }
- products=[...shopeeProducts,...manualProducts];
  renderProducts();
- renderTrialShowcase();
  renderBest();
  renderTrends();
  renderDemandRadar();
@@ -883,11 +894,11 @@ async function shareProduct(id){
 /* PAINEL */
 function openDashboardCard(type){
  if(type==='produtos'){
-  showTab('radar'); $('commission').value='all'; $('competition').value='all'; $('category').value='all'; renderProducts();
+  showTab('radar'); $('q').value=''; $('commission').value='all'; $('competition').value='all'; $('category').value='all'; renderProducts();
   $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
  if(type==='comissao'){
-  showTab('radar'); $('commission').value='20'; $('competition').value='all'; $('category').value='all'; renderProducts();
+  showTab('radar'); $('q').value=''; $('commission').value='20'; $('competition').value='all'; $('category').value='all'; renderProducts();
   $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
  if(type==='semvendas')showTab('semvendas');
@@ -996,6 +1007,7 @@ async function loadPrompts(){
  const{data,error}=await db.from('radar_prompts').select('*').order('criado_em',{ascending:false});
  if(error){
   console.warn('Biblioteca de prompts:',error.message);
+  if($('promptsAccess'))$('promptsAccess').innerHTML='<div class="empty">Erro ao carregar prompts: '+esc(error.message)+'</div>' ;
   return;
  }
  promptRows=data||[];
@@ -1006,6 +1018,7 @@ async function loadTutorials(){
  const{data,error}=await db.from('radar_tutoriais').select('*').order('ordem',{ascending:true});
  if(error){
   console.warn('Biblioteca de vídeos:',error.message);
+  if($('tutorialsAccess'))$('tutorialsAccess').innerHTML='<div class="empty">Erro ao carregar vídeos UGC: '+esc(error.message)+'</div>' ;
   return;
  }
  tutorialRows=data||[];
@@ -1013,13 +1026,13 @@ async function loadTutorials(){
 }
 
 function renderPrompts(){
- const allowed=isAdmin||hasPaidMembership;
+ const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
  const html=allowed?promptRows.map(p=>`
   <div class="content-card">
    <span class="pill">${esc(p.categoria||'Prompt')}</span>
    <h3>${esc(p.titulo||p.nome||'Prompt')}</h3>
    <pre>${esc(p.conteudo||p.prompt||'')}</pre>
-   <button class="soft" onclick="copyPrompt('${String('${p.id}')}')">Copiar prompt</button>
+   <button class="soft" onclick="copyPrompt('${esc(p.id)}')">Copiar prompt</button>
    ${isAdmin?`<button class="danger" onclick="deletePrompt('${p.id}')">Excluir</button>`:''}
   </div>`).join(''):'<div class="empty">🔒 Biblioteca exclusiva para assinantes pagos.</div>';
 
@@ -1027,54 +1040,39 @@ function renderPrompts(){
 }
 
 
+async function resolveTutorialVideo(p){
+ const raw=String(p.video_url||p.storage_path||p.url_video||p.arquivo||'').trim();
+ if(!raw)return '';
+ if(/^https?:\/\//i.test(raw))return raw;
+ const path=String(p.storage_path||raw).replace(/^\/+/, '').replace(/^radar-ugc-videos\//,'');
+ try{
+  const {data,error}=await db.storage.from('radar-ugc-videos').createSignedUrl(path,3600);
+  if(!error&&data?.signedUrl)return data.signedUrl;
+ }catch(e){console.warn('Link assinado UGC:',e);}
+ try{
+  const {data}=db.storage.from('radar-ugc-videos').getPublicUrl(path);
+  return data?.publicUrl||'';
+ }catch(e){console.warn('Link público UGC:',e);return '';}
+}
+
 async function renderTutorials(){
-  const allowed=isAdmin||hasPaidMembership;
-
-  const target=$('tutorialsAccess');
-  if(!target)return;
-
-  if(!allowed){
-    target.innerHTML='<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';
-    return;
-  }
-
-  const rows=Array.isArray(tutorialRows)?tutorialRows:[];
-
-  const cards=await Promise.all(rows.map(async p=>{
-    let videoUrl=p.video_url||'';
-
-    if(p.storage_path){
-      const {data,error}=await db.storage
-        .from('radar-ugc-videos')
-        .createSignedUrl(p.storage_path,3600);
-
-      if(error){
-        console.error('Erro ao gerar link do vídeo:',error);
-      }else{
-        videoUrl=data?.signedUrl||videoUrl;
-      }
-    }
-
-    return `
-      <div class="content-card">
-        <h3>${esc(p.titulo||'Vídeo')}</h3>
-        <p>${esc(p.descricao||'')}</p>
-
-        ${videoUrl
-          ? `<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`
-          : '<p class="muted">Não foi possível carregar este vídeo.</p>'
-        }
-
-        ${isAdmin
-          ? `<button class="danger" onclick="deleteTutorial('${p.id}')">Excluir</button>`
-          : ''
-        }
-      </div>
-    `;
-  }));
-
-  target.innerHTML=cards.join('')||
-    '<div class="empty">Nenhum tutorial cadastrado.</div>';
+ const target=$('tutorialsAccess');
+ if(!target)return;
+ const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
+ if(!allowed){target.innerHTML='<div class="empty">🔒 Tutoriais exclusivos para assinantes pagos.</div>';return;}
+ const rows=Array.isArray(tutorialRows)?tutorialRows:[];
+ if(!rows.length){target.innerHTML='<div class="empty">Nenhum tutorial cadastrado.</div>';return;}
+ target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
+ const cards=await Promise.all(rows.map(async p=>{
+  const videoUrl=await resolveTutorialVideo(p);
+  return `<div class="content-card">
+   <h3>${esc(p.titulo||p.nome||'Vídeo')}</h3>
+   <p>${esc(p.descricao||'')}</p>
+   ${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">O cadastro existe, mas não foi possível resolver o endereço do arquivo de vídeo.</p>'}
+   ${isAdmin?`<button class="danger" onclick="deleteTutorial('${esc(p.id)}')">Excluir</button>`:''}
+  </div>`;
+ }));
+ target.innerHTML=cards.join('');
 }
 
 /* ADMINISTRAÇÃO DE PROMPTS */
@@ -1236,25 +1234,39 @@ async function removeVideo(){
 }
 
 async function loadSharedVideo(){
- const{data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
- if(error||!data?.valor){showVideoPlaceholder();return;}
- let videoUrl=String(data.valor).trim();
- if(!/^https?:\/\//i.test(videoUrl)){
-  const {data:publicData}=db.storage.from('videos-radar').getPublicUrl(videoUrl);
-  videoUrl=publicData?.publicUrl||videoUrl;
+ const preview=$('videoPreview'),hero=$('heroVideo');
+ try{
+  const {data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
+  if(error)throw error;
+  const raw=String(data?.valor||'').trim();
+  if(!raw){showVideoPlaceholder();return;}
+  let videoUrl=raw;
+  if(!/^https?:\/\//i.test(raw)){
+   const path=raw.replace(/^\/+/, '').replace(/^videos-radar\//,'');
+   try{
+    const {data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
+    if(!signedError&&signed?.signedUrl)videoUrl=signed.signedUrl;
+    else videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';
+   }catch(e){videoUrl=db.storage.from('videos-radar').getPublicUrl(path).data?.publicUrl||'';}
+  }
+  if(!videoUrl){showVideoPlaceholder('Não foi possível localizar o arquivo no bucket videos-radar.');return;}
+  displaySharedVideo(videoUrl);
+ }catch(error){
+  console.error('Erro ao carregar vídeo principal:',error);
+  showVideoPlaceholder('Erro ao consultar o vídeo: '+(error.message||'verifique a configuração.'));
  }
- displaySharedVideo(videoUrl);
 }
 
-function showVideoPlaceholder(){
- $('videoPreview').innerHTML='<div class="video-placeholder">O vídeo aparecerá aqui quando for publicado.</div>';
- $('heroVideo').innerHTML='<div class="video-placeholder">▶<b>10 DICAS PARA VENDER MAIS</b><small>Vídeo ainda não publicado.</small></div>';
+function showVideoPlaceholder(note='O vídeo aparecerá aqui quando for publicado.'){
+ $('videoPreview').innerHTML=`<div class="video-placeholder">${esc(note)}</div>`;
+ $('heroVideo').innerHTML=`<div class="video-placeholder">▶<b>10 DICAS PARA VENDER MAIS</b><small>${esc(note)}</small></div>`;
 }
 
 function displaySharedVideo(url){
  const safe=esc(url);
- $('videoPreview').innerHTML=`<video controls playsinline src="${safe}"></video>`;
- $('heroVideo').innerHTML=`<video controls playsinline src="${safe}"></video>`;
+ const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;height:100%;max-height:420px;object-fit:contain;background:#000" src="${safe}" onerror="this.insertAdjacentHTML('afterend','<p class=\"muted\">O navegador não conseguiu abrir o arquivo. Confira o arquivo salvo no bucket videos-radar.</p>')"></video>`;
+ $('videoPreview').innerHTML=videoHtml;
+ $('heroVideo').innerHTML=videoHtml;
 }
 
 /* COMPARTILHAR RADAR */
@@ -1528,18 +1540,6 @@ function renderTrialShowcase(){
       :'<div class="empty">Nenhum produto marcado como Em alta.</div>';
   }
 
-  if($('weeklyRecommendations')){
-    $('weeklyRecommendations').innerHTML=top.length
-      ?top.slice(0,1).map(p=>`
-        <div class="recommendation-item">
-          ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}
-          <strong>${esc(p.nome)}</strong>
-          <small>Exemplo de postagem</small>
-          <p class="muted">Demonstração cadastrada pelo administrador.</p>
-        </div>
-      `).join('')
-      :'<div class="empty">Nenhum produto demonstrativo cadastrado.</div>';
-  }
 }
 
 /* LINKS SALVOS */
