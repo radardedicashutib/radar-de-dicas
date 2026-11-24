@@ -267,10 +267,10 @@ main{padding:0 11px}
 <button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
-<button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
-<button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
+<button data-tab="video" onclick="openRadarFeature('video')">🎥 Minhas dicas</button>
+<button data-tab="salles" id="sallesTab" onclick="openRadarFeature('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
-<button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
+<button data-tab="admin" id="adminTab" class="hidden" onclick="openRadarFeature('admin')">⚙️ Administração</button>
 </nav>
 <div class="panel">
 <div class="demand-heading">
@@ -379,14 +379,21 @@ main{padding:0 11px}
 </div>
 <div class="panel"><h3>🧠 Consultor de oportunidades — análise Salles</h3><p class="muted">A Sales IA organiza os dados que você informa e gera uma leitura de oportunidade, riscos e próximos passos. Nesta versão, a análise é calculada a partir dos dados cadastrados; não consulta automaticamente a Shopee.</p><div id="sallesInsights" class="content-grid"><div class="empty">Cadastre produtos para receber uma análise.</div></div></div>
 <div class="panel"><h3>🕵️ Espião de produtos</h3><p class="muted">Compare produtos e registre preço, vendas, comissão e concorrência observados na Shopee.</p>
-<form id="sallesProductForm" onsubmit="saveSallesProduct(event)"><div class="formgrid">
-<label>Nome do produto<input id="spName" required placeholder="Ex.: Mini aspirador portátil"></label>
-<label>Link do produto<input id="spUrl" type="url" placeholder="https://shopee.com.br/..."></label>
-<label>Preço atual (R$)<input id="spPrice" type="number" min="0" step="0.01" required></label>
+<form id="sallesProductForm" onsubmit="saveSallesProduct(event)">
+<div class="formgrid">
+<label class="wide">Link do produto Shopee<input id="spUrl" type="url" required placeholder="Cole aqui o link do produto da Shopee"></label>
+</div>
+<div class="row"><button class="primary" type="button" id="spFetchButton" onclick="fetchSallesSpyProduct()">🔎 Buscar produto pelo link</button></div>
+<div id="spFetchMessage" class="statusline" aria-live="polite"></div>
+<div class="formgrid" style="margin-top:10px">
+<label>Nome do produto<input id="spName" required placeholder="Será preenchido pela busca"></label>
+<label>Preço atual (R$)<input id="spPrice" type="number" min="0" step="0.01" required placeholder="Será preenchido pela busca"></label>
 <label>Vendas observadas<input id="spSales" type="number" min="0" value="0"></label>
-<label>Comissão por venda (R$)<input id="spCommission" type="number" min="0" step="0.01" value="0"></label>
+<label>Comissão por venda (R$) — manual<input id="spCommission" type="number" min="0" step="0.01" value="0"></label>
 <label>Concorrentes/afiliados estimados<input id="spCompetition" type="number" min="0" value="0"></label>
-</div><div class="row"><button class="primary" type="submit">Adicionar à análise</button><button class="soft" type="button" onclick="resetSallesProductForm()">Limpar</button></div></form>
+</div>
+<div class="row"><button class="primary" type="submit">Adicionar à análise</button><button class="soft" type="button" onclick="resetSallesProductForm()">Limpar</button></div>
+</form>
 <div id="sallesProductList" class="content-grid"></div>
 </div>
 <div class="panel"><h3>📡 Radar 360 — Concorrência e mercado</h3><p class="muted">Visão comparativa dos produtos registrados. Os indicadores usam os dados inseridos por você; não representam coleta automática da Shopee.</p><div id="sallesRadar360" class="content-grid"></div></div>
@@ -526,6 +533,28 @@ function showTab(name){
  if(name==='tendencias')renderTrends();
  if(name==='admin'&&isAdmin)loadAdminData();
  if(name==='salles'&&(isAdmin||hasPaidMembership))renderSalles();
+ // Atualiza o link temporário do vídeo sempre que o assinante abre Minhas dicas.
+ if(name==='video'&&(isAdmin||hasPaidMembership||hasTrialAccess))loadSharedVideo();
+}
+
+function openRadarFeature(name){
+ if(name==='admin'){
+  if(!isAdmin){alert('Área exclusiva do administrador.');return;}
+  showTab('admin');
+  setTimeout(()=>{$('productForm')?.scrollIntoView({behavior:'smooth',block:'start'});},80);
+  return;
+ }
+ if(name==='salles'){
+  showTab('salles');
+  setTimeout(()=>{$('salles')?.scrollIntoView({behavior:'smooth',block:'start'});},80);
+  return;
+ }
+ if(name==='video'){
+  showTab('video');
+  if(isAdmin){
+   setTimeout(()=>{$('videoAdminControls')?.scrollIntoView({behavior:'smooth',block:'center'});},80);
+  }
+ }
 }
 
 function switchAccount(){
@@ -1052,6 +1081,73 @@ function renderDashboard(){
 }
 
 /* CADASTRO DE PRODUTOS */
+async function fetchShopeeProduct(){
+ if(!isAdmin)return;
+ const url=$('shopeeProductUrl')?.value.trim()||'';
+ const status=$('shopeeProductMessage');
+ const button=$('fetchShopeeProductButton');
+ if(!url){message('shopeeProductMessage','Cole o link do produto da Shopee primeiro.','error');return;}
+ if(!/^https?:\/\/([a-z0-9-]+\.)?shopee\.com\.br\//i.test(url) && !/^https?:\/\/s\.shopee\.com\.br\//i.test(url)){
+  message('shopeeProductMessage','Informe um link válido da Shopee Brasil.','error');return;
+ }
+ button.disabled=true;button.textContent='⏳ BUSCANDO PRODUTO...';
+ message('shopeeProductMessage','Consultando os dados do produto pelo link...');
+ try{
+  // A Edge Function precisa aceitar consulta por URL/ID do item para devolver os metadados.
+  const parsed=new URL(url);
+  const match=parsed.pathname.match(/i\.(\d+)\.(\d+)/);
+  const shopId=match?.[1]||'';
+  const itemId=match?.[2]||'';
+  const payloads=[
+   {action:'product_details',mode:'product_details',url,product_url:url,link:url,shop_id:shopId,item_id:itemId},
+   {action:'fetch_product',url,product_url:url,shopId,itemId},
+   {url,shop_id:shopId,item_id:itemId}
+  ];
+  let product=null,lastError=null;
+  for(const body of payloads){
+   const result=await db.functions.invoke('radar-shopee',{body});
+   if(result.error){lastError=result.error;continue;}
+   const data=result.data||{};
+   product=data.product||data.item||data.data?.product||data.data?.item||
+     (Array.isArray(data.products)?data.products[0]:null)||
+     (Array.isArray(data.data?.products)?data.data.products[0]:null);
+   if(product)break;
+   if(data.name||data.productName||data.product_name||data.title){product=data;break;}
+   lastError=new Error(data.message||data.error||'A integração não retornou os dados do produto.');
+  }
+  if(!product)throw lastError||new Error('A integração não conseguiu localizar o produto pelo link.');
+  const name=product.name||product.productName||product.product_name||product.title||product.nome||'';
+  const price=product.priceMin??product.price_max??product.priceMax??product.price??product.price_min??product.preco??'';
+  const image=product.image||product.imageUrl||product.image_url||product.imageURL||product.imagem_url||'';
+  const category=product.category||product.categoryName||product.categoria||'';
+  const productLink=product.productLink||product.product_link||product.url||product.url_product||url;
+  const commission=product.commissionRate??product.commission_rate??product.commission_rate_percent??'';
+  const sales=product.sales??product.salesCount??product.sales_count??product.vendas??'';
+  const idsShop=product.shopId??product.shop_id??shopId;
+  const idsItem=product.itemId??product.item_id??itemId;
+  if(name)$('pname').value=name;
+  if(price!=='')$('pprice').value=numericValue(price);
+  if(image)$('pimage').value=image;
+  if(category){
+   const options=[...$('pcat').options];
+   const found=options.find(o=>o.text.trim().toLowerCase()===String(category).trim().toLowerCase());
+   if(found)$('pcat').value=found.value||found.text;
+  }
+  $('plink').value=productLink;
+  if(idsShop)$('pshopId').value=idsShop;
+  if(idsItem)$('pitemId').value=idsItem;
+  if(commission!=='')$('pcommissionRate').value=numericValue(commission);
+  if(sales!=='')$('psales').value=numericValue(sales);
+  message('shopeeProductMessage','Dados recebidos. Confira os campos e complete comissão/concorrência antes de salvar.','ok');
+  $('productForm')?.scrollIntoView({behavior:'smooth',block:'start'});
+ }catch(error){
+  console.error('Busca do produto pelo link:',error);
+  message('shopeeProductMessage','Não foi possível puxar os dados pelo link. A função radar-shopee precisa estar configurada para consulta de detalhes por URL/ID. '+(error?.message||''),'error');
+ }finally{
+  button.disabled=false;button.textContent='🔎 BUSCAR DADOS DO PRODUTO';
+ }
+}
+
 async function saveProduct(event){
  event.preventDefault();
  if(!isAdmin)return;
@@ -1381,34 +1477,40 @@ async function removeVideo(){
  }catch(error){message('videoAdminMessage','Erro ao remover: '+error.message,'error');}
 }
 
-function getMainVideoStoragePath(value){
+function getMainVideoStorageLocation(value){
  const raw=String(value||'').trim();
- if(!raw)return '';
+ if(!raw)return null;
 
- // Compatibilidade com o endereço público antigo já salvo em radar_config.
+ // Aceita caminhos simples, caminhos com nome do bucket e URLs do Supabase.
  if(/^https?:\/\//i.test(raw)){
   try{
    const parsed=new URL(raw);
    const marker='/storage/v1/object/';
    const markerIndex=parsed.pathname.indexOf(marker);
-   if(markerIndex<0)return '';
+   if(markerIndex<0)return {directUrl:raw};
    let objectPart=parsed.pathname.slice(markerIndex+marker.length);
    objectPart=objectPart.replace(/^(public|sign|authenticated)\//,'');
-   const bucketPrefix='videos-radar/';
-   if(!objectPart.startsWith(bucketPrefix))return '';
-   return decodeURIComponent(objectPart.slice(bucketPrefix.length));
+   const slash=objectPart.indexOf('/');
+   if(slash<1)return null;
+   const bucket=objectPart.slice(0,slash);
+   const path=decodeURIComponent(objectPart.slice(slash+1));
+   return path?{bucket,path}:null;
   }catch(error){
-   console.warn('Não foi possível interpretar o endereço antigo do vídeo:',error);
-   return '';
+   console.warn('Não foi possível interpretar o endereço do vídeo:',error);
+   return null;
   }
  }
 
- return raw.replace(/^\/+/,'').replace(/^videos-radar\//,'');
+ const clean=raw.replace(/^\/+/,'');
+ for(const bucket of ['videos-radar','radar-ugc-videos']){
+  const prefix=bucket+'/';
+  if(clean.startsWith(prefix))return {bucket,path:clean.slice(prefix.length)};
+ }
+ return {bucket:null,path:clean};
 }
 
 async function loadSharedVideo(){
  try{
-  // O vídeo de boas-vindas é liberado para administrador, teste grátis ativo e plano pago ativo.
   if(!currentUser||(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)){
    showVideoPlaceholder('Entre com uma conta com acesso ativo para assistir ao vídeo de boas-vindas.');
    return;
@@ -1418,22 +1520,32 @@ async function loadSharedVideo(){
   if(error)throw error;
 
   const raw=String(data?.valor||'').trim();
-  if(!raw){showVideoPlaceholder();return;}
-
-  const path=getMainVideoStoragePath(raw);
-  if(!path){
-   throw new Error('O caminho do vídeo não foi reconhecido. Publique o vídeo novamente pelo painel administrador.');
+  if(!raw){
+   showVideoPlaceholder('O administrador ainda precisa publicar o vídeo principal.');
+   return;
   }
 
-  // Bucket privado: gerar URL assinada para o usuário autenticado.
-  const{data:signed,error:signedError}=await db.storage.from('videos-radar').createSignedUrl(path,3600);
-  if(signedError)throw signedError;
-  if(!signed?.signedUrl)throw new Error('O Supabase não gerou o endereço temporário do vídeo.');
+  const location=getMainVideoStorageLocation(raw);
+  if(!location)throw new Error('O caminho salvo para o vídeo está inválido.');
+  if(location.directUrl){
+   displaySharedVideo(location.directUrl);
+   return;
+  }
 
-  displaySharedVideo(signed.signedUrl);
+  const buckets=location.bucket?[location.bucket,...['videos-radar','radar-ugc-videos'].filter(b=>b!==location.bucket)]:['videos-radar','radar-ugc-videos'];
+  let lastError=null;
+  for(const bucket of buckets){
+   const{data:signed,error:signedError}=await db.storage.from(bucket).createSignedUrl(location.path,3600);
+   if(!signedError&&signed?.signedUrl){
+    displaySharedVideo(signed.signedUrl);
+    return;
+   }
+   lastError=signedError||new Error('O Supabase não retornou um link temporário.');
+  }
+  throw new Error('Não encontrei o arquivo "'+location.path+'" nos buckets de vídeo. Reenvie o vídeo pelo painel Administração. '+(lastError?.message||''));
  }catch(error){
   console.error('Erro ao carregar vídeo principal:',error);
-  showVideoPlaceholder('Não foi possível carregar o vídeo: '+(error.message||'verifique a permissão de leitura do bucket videos-radar.'));
+  showVideoPlaceholder('Não foi possível carregar o vídeo: '+(error.message||'verifique o arquivo e as permissões do armazenamento.'));
  }
 }
 
@@ -1453,7 +1565,7 @@ function displaySharedVideo(url){
   if(player){
    player.addEventListener('error',()=>{
     console.error('Falha na reprodução do vídeo principal:',player.error);
-    showVideoPlaceholder('O vídeo foi localizado, mas o navegador não conseguiu reproduzi-lo. Confira se o arquivo está em MP4/H.264.');
+    showVideoPlaceholder('O arquivo foi localizado, mas o navegador não conseguiu reproduzi-lo. Use MP4 com vídeo H.264 e áudio AAC.');
    },{once:true});
   }
  });
@@ -1541,6 +1653,37 @@ function renderSalles(){
   return {...p,score,verdict,advice,rate};
  }).sort((a,b)=>b.score-a.score);
  $('sallesInsights').innerHTML=ranked.length?ranked.slice(0,6).map(p=>`<div class="content-card"><span class="pill hot">${p.verdict}</span><h3>${esc(p.name)}</h3><p><b>Índice estimado: ${p.score}/100</b></p><p>Comissão: ${money(p.commission)} (${p.rate.toFixed(1)}%) • Vendas informadas: ${p.sales} • Concorrência: ${p.competition}</p><p>${esc(p.advice)}</p></div>`).join(''):'<div class="empty">Cadastre produtos no Espião de produtos para gerar análises.</div>';
+}
+
+async function fetchSallesSpyProduct(){
+ const url=$('spUrl').value.trim();
+ const button=$('spFetchButton');
+ if(!url){message('spFetchMessage','Cole o link do produto da Shopee primeiro.','error');return;}
+ if(!/^https?:\/\/(www\.)?(shopee\.com\.br|shopee\.com|s\.shopee\.com\.br)\//i.test(url)){
+  message('spFetchMessage','Informe um link válido da Shopee.','error');return;
+ }
+ button.disabled=true;button.textContent='⏳ Buscando produto...';
+ message('spFetchMessage','Consultando os dados do produto pelo link...');
+ try{
+  // A consulta precisa ocorrer no servidor para evitar bloqueios de CORS da Shopee.
+  const{data,error}=await db.functions.invoke('radar-shopee',{body:{action:'product_detail',url,product_url:url,productUrl:url}});
+  if(error)throw error;
+  const item=data?.product||data?.item||data?.data?.product||data?.data?.item||data?.data||data;
+  const name=item?.name||item?.productName||item?.product_name||item?.title||item?.nome||'';
+  const rawPrice=item?.price||item?.priceMin||item?.price_min||item?.price_max||item?.priceMax||item?.preco||'';
+  const price=typeof rawPrice==='object'?(rawPrice.amount||rawPrice.value||''):rawPrice;
+  const image=item?.image||item?.imageUrl||item?.image_url||item?.cover||'';
+  if(name)$('spName').value=String(name);
+  if(price!==''&&price!==null&&price!==undefined)$('spPrice').value=String(numericValue(price));
+  if(!name&&!price&&!image){
+   const detail=data?.message||data?.error||'A integração atual não retornou os detalhes deste link. O endpoint radar-shopee precisa aceitar a ação product_detail.';
+   throw new Error(detail);
+  }
+  message('spFetchMessage','Dados encontrados. Confira nome e preço; informe a comissão manualmente.','ok');
+ }catch(error){
+  console.error('Espião de produtos — busca por link:',error);
+  message('spFetchMessage','Não foi possível obter os dados automaticamente: '+(error.message||'integração indisponível')+'. A função radar-shopee precisa estar configurada para consultar detalhes por URL.','error');
+ }finally{button.disabled=false;button.textContent='🔎 Buscar produto pelo link';}
 }
 
 function saveSallesProduct(event){
