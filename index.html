@@ -180,16 +180,12 @@ main{padding:0 11px}
 <b>Importante:</b> os dados de vendas, comissão e concorrência dependem das informações disponíveis. No teste grátis, a busca automática na Shopee fica bloqueada; os produtos demonstrativos são cadastrados pelo administrador. O Radar atualiza os dados sincronizados a cada 6 horas quando a rotina de integração estiver configurada. O Índice de Oportunidade é uma estimativa, não garantia de vendas.
 </div>  <section class="authbox panel" id="authPanel">
 <h2>Acesse sua conta</h2>
-<p class="muted" id="authIntro">Entre com seu e-mail e senha. Novos assinantes devem criar uma conta com nome completo e CPF para ativar o teste grátis de 3 dias após confirmar o e-mail.</p>
-<div id="subscriberFields" class="hidden">
-<label>Nome completo<input id="authFullName" type="text" autocomplete="name" placeholder="Seu nome completo"></label>
-<label style="display:block;margin-top:9px">CPF<input id="authCpf" type="text" inputmode="numeric" autocomplete="off" maxlength="14" placeholder="000.000.000-00"></label>
-</div>
-<label style="display:block;margin-top:9px">E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com" oninput="updateAuthMode()"></label>
-<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="current-password" placeholder="Sua senha"></label>
+<p class="muted">Entre ou crie seu cadastro para acessar o Radar.</p>
+<label>E-mail<input id="authEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com"></label>
+<label style="display:block;margin-top:9px">Senha<input id="authPassword" type="password" autocomplete="current-password" placeholder="Mínimo de 6 caracteres"></label>
 <div class="row">
 <button class="primary" onclick="signIn()">Entrar</button>
-<button class="soft" id="createAccountButton" onclick="signUp()">Criar conta</button>
+<button class="soft" onclick="signUp()">Criar conta</button>
 </div>
 <div class="row"><button class="soft" onclick="resetPassword()">Esqueci minha senha</button></div>
 <div id="authMessage" class="statusline"></div>
@@ -247,7 +243,7 @@ main{padding:0 11px}
 <input id="q" placeholder="Ex.: comedouro pet, vestido, panela" oninput="renderProducts()">
 <select id="commission" onchange="renderProducts()">
 <option value="all">Todas as comissões</option>
-<option value="20">Comissão acima de 20%</option>
+<option value="20">Acima de R$ 20</option>
 </select>
 <select id="competition" onchange="renderProducts()">
 <option value="all">Todos os produtos</option>
@@ -407,7 +403,6 @@ main{padding:0 11px}
 const SUPABASE_URL='https://uwdhjiuufrsjqcbgtoyn.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_XZG-ucLX-b4eq7kCu-cfAA_JctKNxZY';
 const ADMIN_USER_ID='df77bfd4-2f65-4026-9b79-26224bc128ea';
-const ADMIN_EMAIL='geesportesrusticorustico@gmail.com';
 const db=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
 
 let currentUser=null;
@@ -446,6 +441,14 @@ function money(v){
  return numericValue(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
 }
 
+function commissionPercent(p){
+ const stored=p?.taxa_comissao??p?.taxaComissao??p?.commission_rate??p?.commissionRate;
+ if(stored!==null&&stored!==undefined&&stored!=='')return numericValue(stored);
+ const price=numericValue(p?.preco);
+ const commission=numericValue(p?.comissao);
+ return price>0&&commission>0?(commission/price)*100:0;
+}
+
 function showTab(name){
  if(name==='salles'&&!isAdmin&&!hasPaidMembership){
   alert('O Salles IA é exclusivo para assinantes pagos ativos.');
@@ -470,16 +473,6 @@ function switchAccount(){
  }else{
   $('authEmail').focus();
  }
-}
-
-function updateAuthMode(){
- const email=String($('authEmail')?.value||'').trim().toLowerCase();
- const isAdminEmail=email===ADMIN_EMAIL;
- $('subscriberFields')?.classList.toggle('hidden',isAdminEmail);
- $('createAccountButton')?.classList.toggle('hidden',isAdminEmail);
- $('authIntro').textContent=isAdminEmail
-  ?'Acesso administrativo: entre somente com o e-mail e a senha já cadastrados.'
-  :'Entre com seu e-mail e senha. Novos assinantes devem criar uma conta com nome completo e CPF para ativar o teste grátis de 3 dias após confirmar o e-mail.';
 }
 
 async function signIn(){
@@ -507,41 +500,18 @@ async function signIn(){
  }
 }
 
-function normalizeCpf(value){
- return String(value||'').replace(/\D/g,'');
-}
-function validCpf(value){
- const cpf=normalizeCpf(value);
- if(cpf.length!==11||/^(\d)\1{10}$/.test(cpf))return false;
- let sum=0;
- for(let i=0;i<9;i++)sum+=Number(cpf[i])*(10-i);
- let d1=(sum*10)%11;if(d1===10)d1=0;
- if(d1!==Number(cpf[9]))return false;
- sum=0;
- for(let i=0;i<10;i++)sum+=Number(cpf[i])*(11-i);
- let d2=(sum*10)%11;if(d2===10)d2=0;
- return d2===Number(cpf[10]);
-}
 async function signUp(){
- const fullName=$('authFullName')?.value.trim()||'';
  const email=$('authEmail').value.trim();
- const cpf=normalizeCpf($('authCpf')?.value||'');
  const password=$('authPassword').value;
- if(email.toLowerCase()===ADMIN_EMAIL){message('authMessage','A conta administrativa deve usar somente Entrar.','error');return;}
- if(fullName.length<3){message('authMessage','Informe seu nome completo.','error');return;}
- if(!email||!validCpf(cpf)||password.length<6){
-  message('authMessage','Confira o e-mail, informe um CPF válido e use uma senha com pelo menos 6 caracteres.','error');return;
+ if(!email||password.length<6){
+  message('authMessage','Informe um e-mail válido e uma senha com pelo menos 6 caracteres.','error');
+  return;
  }
  try{
-  localStorage.setItem('radar_pending_cpf',cpf);
-  localStorage.setItem('radar_pending_name',fullName);
-  const{data,error}=await db.auth.signUp({
-   email,password,
-   options:{data:{full_name:fullName},emailRedirectTo:location.origin+location.pathname}
-  });
+  const{data,error}=await db.auth.signUp({email,password});
   if(error)throw error;
-  if(data?.session){await handleSession(data.session);}
-  else message('authMessage','Cadastro realizado! Enviamos um link para confirmar seu e-mail. Depois de confirmar, entre com seu e-mail e senha para ativar os 3 dias grátis.','ok');
+  if(data?.session)await handleSession(data.session);
+  else message('authMessage','Cadastro realizado. Confira seu e-mail para confirmar a conta.','ok');
  }catch(error){
   console.error('Erro no cadastro:',error);
   message('authMessage',error.message||'Não foi possível criar a conta.','error');
@@ -591,50 +561,13 @@ async function handleSession(session){
  $('authPanel').classList.add('hidden');
  $('appArea').classList.remove('hidden');
  $('accountButton').textContent='Conta conectada';
- $('welcome').textContent='Olá, '+(currentUser.user_metadata?.full_name||currentUser.email||'usuário');
+ $('welcome').textContent='Olá, '+(currentUser.email||'usuário');
  await checkMembership();
  await loadProducts();
  await loadSaved();
  await loadPublicContent();
  await loadSharedVideo();
  renderDashboard();
-}
-
-async function activateCpfTrialIfNeeded(){
- if(!currentUser||isAdmin||hasPaidMembership)return;
- const confirmed=!!(currentUser.email_confirmed_at||currentUser.confirmed_at);
- if(!confirmed){
-  message('appMessage','Confirme seu e-mail para ativar o teste grátis de 3 dias.','error');
-  return;
- }
- const pendingCpf=localStorage.getItem('radar_pending_cpf')||normalizeCpf($('authCpf')?.value||'');
- try{
-  const{data:status,error:statusError}=await db.rpc('radar_verificar_teste_cpf');
-  if(!statusError&&status?.ativo===true){
-   hasTrialAccess=true;hasActiveMembership=true;
-   localStorage.removeItem('radar_pending_cpf');
-   localStorage.removeItem('radar_pending_name');
-   return;
-  }
-  if(!pendingCpf)return;
-  const{data,error}=await db.rpc('radar_ativar_teste_cpf',{p_cpf:pendingCpf});
-  if(error)throw error;
-  if(data?.ativo===false||['cpf_ja_utilizado','ja_utilizado'].includes(data?.status)){
-   message('appMessage','Este CPF já utilizou o teste grátis. Escolha um plano pago para continuar.','error');
-   localStorage.removeItem('radar_pending_cpf');
-   return;
-  }
-  if(data?.ativo===true||['ativado','ja_ativo'].includes(data?.status)){
-   hasTrialAccess=true;hasActiveMembership=true;
-   localStorage.removeItem('radar_pending_cpf');
-   localStorage.removeItem('radar_pending_name');
-  }else if(data?.message){
-   message('appMessage',String(data.message),'error');
-  }
- }catch(error){
-  console.error('Erro ao ativar teste por CPF:',error);
-  message('appMessage','Não foi possível ativar o teste grátis: '+(error.message||'verifique a configuração do Supabase.'),'error');
- }
 }
 
 async function checkMembership(){
@@ -655,10 +588,6 @@ async function checkMembership(){
   }catch(error){
    console.error('Erro ao verificar assinatura:',error);
   }
-  try{
-   const{data,error}=await db.rpc('radar_verificar_teste_cpf');
-   if(!error&&data?.ativo===true){hasTrialAccess=true;hasActiveMembership=true;}
-  }catch(error){console.warn('Verificação de teste por CPF:',error);}
   try{
    const{data,error}=await db.from('radar_assinaturas').select('*').eq('user_id',currentUser.id).eq('status','active').order('criado_em',{ascending:false}).limit(1);
    if(!error&&data?.length){
@@ -687,17 +616,20 @@ async function checkMembership(){
 
 async function loadProducts(){
  const productFields='*';
- const{data,error}=await db.from('produtos').select(productFields).order('criado_em',{ascending:false});
+ const{data,error}=await db.from('produtos').select(productFields).eq('ativo',true).order('criado_em',{ascending:false});
  if(error){
   console.error('Erro ao carregar produtos:',error);
   manualProducts=[];
-  if($('appMessage'))message('appMessage','Não foi possível carregar os produtos do Supabase: '+error.message,'error');
  }else{
   manualProducts=(data||[]).map(p=>({...p,taxaComissao:p.taxa_comissao??p.taxaComissao,origem:'manual'}));
  }
  products=[...shopeeProducts,...manualProducts];
  renderProducts();
  renderTrialShowcase();
+ renderBest();
+ renderTrends();
+ renderDemandRadar();
+ updateStats();
  if($('zeroSalesList'))loadZeroSalesProducts();
 }
 
@@ -830,23 +762,6 @@ function competitionLevel(value){
  return 'Alta';
 }
 
-function productCard(p){
- const id=String(p.id??'');
- const link=p.link_afiliado||p.link_produto||'';
- return `<article class="product">
-  ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome||'Produto')}" loading="lazy">`:''}
-  <h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'')}</p>
-  <div class="metrics">
-   <div><b>${money(p.preco)}</b><small>Preço</small></div>
-   <div><b>${money(p.comissao)}</b><small>Comissão</small></div>
-   <div><b>${esc(p.vendas??'—')}</b><small>Vendas</small></div>
-  </div>
-  ${opportunityHtml(p)}
-  ${link?`<div class="actions"><button class="primary" onclick="openLink('${esc(id)}')">Abrir produto</button><button class="soft" onclick="toggleSave('${esc(id)}')">⭐ Salvar link</button><button class="soft" onclick="shareProduct('${esc(id)}')">Compartilhar</button></div>`:''}
-  ${isAdmin&&p.origem==='manual'?`<div class="actions"><button class="soft" onclick="editProduct('${esc(id)}')">Editar</button><button class="danger" onclick="deleteProduct('${esc(id)}')">Excluir</button></div>`:''}
- </article>`;
-}
-
 /* FILTROS */
 function clearFilters(){
  $('q').value='';
@@ -967,8 +882,14 @@ async function shareProduct(id){
 
 /* PAINEL */
 function openDashboardCard(type){
- if(type==='produtos')showTab('radar');
- if(type==='comissao')showTab('radar');
+ if(type==='produtos'){
+  showTab('radar'); $('commission').value='all'; $('competition').value='all'; $('category').value='all'; renderProducts();
+  $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+ }
+ if(type==='comissao'){
+  showTab('radar'); $('commission').value='20'; $('competition').value='all'; $('category').value='all'; renderProducts();
+  $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+ }
  if(type==='semvendas')showTab('semvendas');
  if(type==='mais_vende')showTab('mais');
 }
@@ -976,6 +897,9 @@ function openDashboardCard(type){
 function renderDashboard(){
  renderProducts();
  renderSaved();
+ renderBest();
+ renderTrends();
+ renderDemandRadar();
  updateStats();
 }
 
@@ -1089,13 +1013,13 @@ async function loadTutorials(){
 }
 
 function renderPrompts(){
- const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
+ const allowed=isAdmin||hasPaidMembership;
  const html=allowed?promptRows.map(p=>`
   <div class="content-card">
    <span class="pill">${esc(p.categoria||'Prompt')}</span>
    <h3>${esc(p.titulo||p.nome||'Prompt')}</h3>
    <pre>${esc(p.conteudo||p.prompt||'')}</pre>
-   <button class="soft" onclick="navigator.clipboard.writeText(${JSON.stringify(p.conteudo||p.prompt||'')}).then(()=>alert('Prompt copiado!'))">Copiar prompt</button>
+   <button class="soft" onclick="copyPrompt('${String('${p.id}')}')">Copiar prompt</button>
    ${isAdmin?`<button class="danger" onclick="deletePrompt('${p.id}')">Excluir</button>`:''}
   </div>`).join(''):'<div class="empty">🔒 Biblioteca exclusiva para assinantes pagos.</div>';
 
@@ -1104,7 +1028,7 @@ function renderPrompts(){
 
 
 async function renderTutorials(){
-  const allowed=isAdmin||hasPaidMembership||hasTrialAccess;
+  const allowed=isAdmin||hasPaidMembership;
 
   const target=$('tutorialsAccess');
   if(!target)return;
@@ -1196,9 +1120,9 @@ async function saveTutorial(event){
 
  if(file){
   const path=Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:true});
+  const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
   if(error){alert('Erro no envio do vídeo: '+error.message);return;}
-  videoUrl=db.storage.from('radar-ugc-videos').getPublicUrl(data.path).data.publicUrl;
+  videoUrl=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
  }
 
  const id=$('tutorialEditId').value;
@@ -1290,10 +1214,10 @@ async function loadVideo(){
 
  message('videoMessage','Enviando vídeo...');
  const path='principal-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
- const{data,error}=await db.storage.from('videos-radar').upload(path,file,{upsert:true});
+ const{data,error}=await db.storage.from('radar-videos').upload(path,file,{upsert:true});
  if(error){message('videoMessage','Erro: '+error.message,'error');return;}
 
- const url=db.storage.from('videos-radar').getPublicUrl(data.path).data.publicUrl;
+ const url=db.storage.from('radar-videos').getPublicUrl(data.path).data.publicUrl;
  const{error:saveError}=await db.from('radar_config').upsert({
   chave:'video_principal',
   valor:url
@@ -1314,7 +1238,12 @@ async function removeVideo(){
 async function loadSharedVideo(){
  const{data,error}=await db.from('radar_config').select('valor').eq('chave','video_principal').maybeSingle();
  if(error||!data?.valor){showVideoPlaceholder();return;}
- displaySharedVideo(data.valor);
+ let videoUrl=String(data.valor).trim();
+ if(!/^https?:\/\//i.test(videoUrl)){
+  const {data:publicData}=db.storage.from('videos-radar').getPublicUrl(videoUrl);
+  videoUrl=publicData?.publicUrl||videoUrl;
+ }
+ displaySharedVideo(videoUrl);
 }
 
 function showVideoPlaceholder(){
@@ -1324,9 +1253,8 @@ function showVideoPlaceholder(){
 
 function displaySharedVideo(url){
  const safe=esc(url);
- const videoHtml=`<video controls playsinline preload="metadata" style="width:100%;max-height:420px;background:#000;border-radius:12px" src="${safe}" onerror="this.insertAdjacentHTML('afterend','<p class=\"muted\">Não foi possível abrir este vídeo. Verifique se o arquivo está público no bucket videos-radar e se o endereço salvo em radar_config está correto.</p>')"></video>`;
- $('videoPreview').innerHTML=videoHtml;
- $('heroVideo').innerHTML=videoHtml;
+ $('videoPreview').innerHTML=`<video controls playsinline src="${safe}"></video>`;
+ $('heroVideo').innerHTML=`<video controls playsinline src="${safe}"></video>`;
 }
 
 /* COMPARTILHAR RADAR */
@@ -1500,51 +1428,70 @@ db.auth.onAuthStateChange((event,session)=>{
  }
 });
 function renderProducts(){
-  const q=($('q')?.value||'').toLowerCase();
-  const c=$('commission')?.value||'all';
-  const k=$('competition')?.value||'all';
-  const cat=$('category')?.value||'all';
-
-  let list=(products||[]).filter(p=>
-    ((p.nome||'')+' '+(p.categoria||'')).toLowerCase().includes(q)&&
-    (c==='all'||Number(p.taxa_comissao??p.taxaComissao)>20)&&
-    (k==='all'||(k==='popular'&&Number(p.vendas)>0))&&
-    (cat==='all'||p.categoria===cat)
-  );
-
-  if(k==='popular'){
-    list.sort((a,b)=>(Number(b.vendas)||0)-(Number(a.vendas)||0));
-  }
-
-  const container=$('productList');
-
-  if(container){
-    if(list.length && typeof productCard==='function'){
-      container.innerHTML=list.map(productCard).join('');
-    }else{
-      container.innerHTML=list.length
-        ?list.map(p=>`
-          <article class="product">
-            ${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}
-            <h3>${esc(p.nome)}</h3>
-            <p>${esc(p.categoria||'')}</p>
-            <p>Comissão: ${money(p.comissao)}</p>
-            <p>Vendas: ${esc(p.vendas??'Não informado')}</p>
-            ${p.link_afiliado||p.link_produto
-              ?`<a href="${esc(p.link_afiliado||p.link_produto)}" target="_blank" rel="noopener">Abrir produto</a>`
-              :'Link não cadastrado'}
-          </article>
-        `).join('')
-        :'<div class="empty">Nenhum produto encontrado.</div>';
-    }
-  }
-
-  if(typeof renderOther==='function')renderOther();
-  if(typeof updateStats==='function')updateStats();
-  if(typeof renderDemandRadar==='function')renderDemandRadar();
+ const q=($('q')?.value||'').toLowerCase();
+ const c=$('commission')?.value||'all';
+ const k=$('competition')?.value||'all';
+ const cat=$('category')?.value||'all';
+ let list=(products||[]).filter(p=>
+  ((p.nome||'')+' '+(p.categoria||'')).toLowerCase().includes(q)&&
+  (c==='all'||commissionPercent(p)>20)&&
+  (k==='all'||(k==='popular'&&numericValue(p.vendas)>0))&&
+  (cat==='all'||p.categoria===cat)
+ );
+ if(k==='popular')list.sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
+ const container=$('productList');
+ if(container)container.innerHTML=list.length?list.map(productCard).join(''):'<div class="empty">Nenhum produto encontrado com esses filtros.</div>';
+ updateStats();
+ renderDemandRadar();
 }
+
+function renderDemandRadar(){
+ const source=(manualProducts||[]).length?manualProducts:(products||[]);
+ const total=source.length;
+ const categories={};
+ source.forEach(p=>{const name=String(p.categoria||'Outros').trim()||'Outros';categories[name]=(categories[name]||0)+1;});
+ const ranked=Object.entries(categories).sort((a,b)=>b[1]-a[1]);
+ const bySales=[...source].sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
+ const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
+ const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
+ const overview=$('categoryOverview');
+ if(overview)overview.innerHTML=ranked.length?ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver lista</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ const ranking=$('categoryRanking');
+ if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" style="width:100%;margin:4px 0" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ const highlight=$('categoryHighlight');
+ if(highlight){
+  if(bySales.length&&numericValue(bySales[0].vendas)>0){const p=bySales[0];highlight.innerHTML=`<b class="highlight">${esc(p.nome)}</b><p>${numericValue(p.vendas).toLocaleString('pt-BR')} vendas informadas • ${esc(p.categoria||'Outros')}</p><button class="soft" type="button" onclick="showTab('mais')">Ver produtos mais vendidos</button>`;}
+  else highlight.textContent=total?'Há produtos cadastrados, mas nenhum possui vendas positivas informadas.':'Nenhum produto cadastrado.';
+ }
+ const weekly=$('weeklyRecommendations');
+ if(weekly){
+  let picks=bySales.filter(p=>numericValue(p.vendas)>0).slice(0,3);
+  if(!picks.length)picks=source.slice(0,3);
+  if(hasTrialAccess&&!hasPaidMembership&&!isAdmin)picks=picks.slice(0,1);
+  weekly.innerHTML=picks.length?picks.map(p=>`<button type="button" class="recommendation-item" style="text-align:left;color:inherit;cursor:pointer" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}<strong>${esc(p.nome)}</strong><small>${numericValue(p.vendas)>0?numericValue(p.vendas)+' vendas informadas':'Produto cadastrado pelo administrador'}</small><p class="muted">Toque para abrir o produto na lista.</p></button>`).join(''):'<div class="empty">Nenhum produto cadastrado para recomendação.</div>';
+ }
+ updateStats();
+}
+
+function filterByCategory(category){
+ showTab('radar'); $('category').value=category; $('commission').value='all'; renderProducts(); $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function showProductInRadar(id){
+ showTab('radar'); $('q').value=''; $('commission').value='all'; $('category').value='all'; renderProducts();
+ const cards=[...document.querySelectorAll('#productList .product')];
+ const target=cards.find(card=>card.innerText&&card.innerText.includes((products.find(p=>String(p.id)===String(id))||{}).nome||'___'));
+ (target||$('productList'))?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+function copyPrompt(id){
+ const p=promptRows.find(x=>String(x.id)===String(id));
+ const content=p?.conteudo||p?.prompt||'';
+ if(!content)return alert('Este prompt está vazio.');
+ if(navigator.clipboard?.writeText)navigator.clipboard.writeText(content).then(()=>alert('Prompt copiado!')).catch(()=>prompt('Copie o prompt:',content));
+ else prompt('Copie o prompt:',content);
+}
+
 function renderTrialShowcase(){
-  if(!hasTrialAccess || isAdmin)return;
+  if(!currentUser)return;
 
   const source=manualProducts||[];
 
@@ -1600,8 +1547,8 @@ function renderSaved(){
   const el=$('savedList');
   if(!el)return;
 
-  el.innerHTML=(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)
-    ?'<div class="empty">Faça um plano para acessar seus links salvos.</div>'
+  el.innerHTML=(!isAdmin&&!hasPaidMembership)
+    ?'<div class="empty">Links salvos — disponível para assinantes pagos.</div>'
     :saved.length?saved.map(s=>`
       <div class="row" style="justify-content:space-between;align-items:center;border-bottom:1px solid var(--line);padding:9px 0">
         <div>
@@ -1637,26 +1584,12 @@ async function loadSaved(){
 }
 /* INDICADORES DO PAINEL */
 function updateStats(){
-  if(!isAdmin&&!hasPaidMembership&&!hasTrialAccess)return;
-
-  const total=products||[];
-
-  const set=(id,value)=>{
-    const el=$(id);
-    if(el)el.textContent=value;
-  };
-
-  set('countProducts',total.length);
-
-  set('countHigh',total.filter(p=>
-    Number(p.taxa_comissao||p.taxaComissao||0)>20
-  ).length);
-
-  set('countNew',radarNoveltyCount||0);
-
-  set('countChampions',total.filter(p=>
-    Number(p.vendas||0)>0
-  ).length);
+ const total=products||[];
+ const set=(id,value)=>{const el=$(id);if(el)el.textContent=value;};
+ set('countProducts',total.length);
+ set('countHigh',total.filter(p=>commissionPercent(p)>20).length);
+ set('countNew',total.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0).length);
+ set('countChampions',total.filter(p=>numericValue(p.vendas)>0).length);
 }
  async function initializeRadar(){
  try{
@@ -1674,7 +1607,6 @@ function updateStats(){
  }
 }
 
-updateAuthMode();
 initializeRadar();
 
 </script>
