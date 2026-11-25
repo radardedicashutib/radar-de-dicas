@@ -1273,14 +1273,33 @@ function renderPrompts(){
 }
 
 
-async function resolveTutorialVideo(p){
- const raw=String(p.video_url||p.storage_path||p.url_video||p.arquivo||'').trim();
+function getTutorialStoragePath(p){
+ const raw=String(p?.storage_path||p?.video_url||p?.url_video||p?.arquivo||'').trim();
  if(!raw)return '';
- if(/^https?:\/\//i.test(raw))return raw;
- const path=String(p.storage_path||raw).replace(/^\/+/, '').replace(/^radar-ugc-videos\//,'');
+ if(/^https?:\/\//i.test(raw)){
+  try{
+   const url=new URL(raw);
+   const marker='/storage/v1/object/';
+   const at=url.pathname.indexOf(marker);
+   if(at<0)return '';
+   const tail=url.pathname.slice(at+marker.length);
+   const match=tail.match(/^(?:public|sign|authenticated)\/radar-ugc-videos\/(.+)$/i);
+   return match?decodeURIComponent(match[1]).replace(/^\/+/,''):'';
+  }catch(_){return '';}
+ }
+ return raw.replace(/^\/+/,'').replace(/^radar-ugc-videos\//,'');
+}
+
+async function resolveTutorialVideo(p){
+ const raw=String(p?.video_url||p?.storage_path||p?.url_video||p?.arquivo||'').trim();
+ if(!raw)return '';
+ const path=getTutorialStoragePath(p);
+ if(!path&&/^https?:\/\//i.test(raw))return raw;
+ if(!path)return '';
  try{
   const {data,error}=await db.storage.from('radar-ugc-videos').createSignedUrl(path,3600);
   if(!error&&data?.signedUrl)return data.signedUrl;
+  if(error)console.warn('Não foi possível gerar URL assinada UGC:',error.message);
  }catch(e){console.warn('Link assinado UGC:',e);}
  try{
   const {data}=db.storage.from('radar-ugc-videos').getPublicUrl(path);
@@ -1299,7 +1318,7 @@ async function renderTutorials(){
   target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
   const cards=await Promise.all(rows.map(async p=>{
    const videoUrl=await resolveTutorialVideo(p);
-   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
+   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px;background:#000" src="${esc(videoUrl)}"></video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}${isAdmin?`<div class="row" style="margin-top:10px"><button class="danger" type="button" onclick="deleteTutorial('${esc(p.id)}')">Excluir vídeo</button></div>`:''}</div>`;
   }));
   target.innerHTML=cards.join('');
  }
@@ -1362,10 +1381,12 @@ async function saveTutorial(event){
  const payload={titulo:$('tutorialTitle').value.trim(),ordem:numericValue($('tutorialOrder').value),descricao:$('tutorialDescription').value.trim()};
  if(file){
   if(!file.type.startsWith('video/')){alert('Selecione um arquivo de vídeo válido.');return;}
-  const path='ugc-'+Date.now()+'-'+file.name.replace(/[^a-zA-Z0-9._-]/g,'_');
-  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:false,contentType:file.type,cacheControl:'3600'});
+  const safeName=file.name.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9._-]/g,'_');
+  const path='ugc-'+Date.now()+'-'+safeName;
+  const{data,error}=await db.storage.from('radar-ugc-videos').upload(path,file,{upsert:false,contentType:file.type||'video/mp4',cacheControl:'3600'});
   if(error){alert('Erro no envio do vídeo: '+error.message);return;}
-  payload.video_url=db.storage.from('radar-ugc-videos').getPublicUrl(data.path).data.publicUrl;
+  // Salva o caminho do objeto, não uma URL pública que falha em bucket privado.
+  payload.video_url=data.path;
  }
  const result=id?await db.from('radar_tutoriais').update(payload).eq('id',id):await db.from('radar_tutoriais').insert(payload);
  if(result.error){alert('Não foi possível salvar o vídeo: '+result.error.message);return;}
@@ -1380,10 +1401,20 @@ function clearTutorialForm(){
 }
 
 async function deleteTutorial(id){
- if(!isAdmin||!confirm('Excluir este vídeo?'))return;
+ if(!isAdmin||!confirm('Excluir este vídeo e seu arquivo armazenado?'))return;
+ const item=tutorialRows.find(x=>String(x.id)===String(id));
+ const path=item?getTutorialStoragePath(item):'';
+ if(path){
+  const{error:storageError}=await db.storage.from('radar-ugc-videos').remove([path]);
+  if(storageError){
+   alert('Não foi possível remover o arquivo de vídeo: '+storageError.message);
+   return;
+  }
+ }
  const{error}=await db.from('radar_tutoriais').delete().eq('id',id);
- if(error){alert(error.message);return;}
+ if(error){alert('Não foi possível excluir o cadastro: '+error.message);return;}
  await loadTutorials();
+ message('appMessage','Vídeo excluído com sucesso.','ok');
 }
 
 /* SOLICITAÇÕES DE PLANO */
