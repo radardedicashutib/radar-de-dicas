@@ -259,12 +259,12 @@ main{padding:0 11px}
 </div>  <section class="stats">
 <button type="button" class="stat" onclick="openDashboardCard('produtos')"><strong id="countProducts">0</strong><small>Produtos encontrados</small></button>
 <button type="button" class="stat" onclick="openDashboardCard('comissao')"><strong id="countHigh">0</strong><small>Comissão acima de 20%</small></button>
-<button type="button" class="stat" onclick="openDashboardCard('semvendas')"><strong id="countNew">0</strong><small>PRODUTOS SEM VENDAS NA SHOPEE</small></button>
+<button type="button" class="stat" onclick="openDashboardCard('semvendas')"><strong id="countNew">0</strong><small>PRODUTO NOVO NA PLATAFORMA</small></button>
 <button type="button" class="stat" onclick="openDashboardCard('mais_vende')"><strong id="countChampions">0</strong><small>O QUE MAIS VENDE</small></button>
 </section>  <nav class="tabs">
 <button class="active" data-tab="radar" onclick="showTab('radar')">🔎 Radar</button>
 <button data-tab="mais" onclick="showTab('mais')">🏆 O que mais vende</button>
-<button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
+<button data-tab="semvendas" onclick="showTab('semvendas')">🆕 PRODUTO NOVO NA PLATAFORMA</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
 <button data-tab="video" onclick="openRadarFeature('video')">🎥 Minhas dicas</button>
@@ -324,7 +324,7 @@ main{padding:0 11px}
 <div id="productList" class="products"></div>
 </section>
 <section id="semvendas" class="section">
-<div class="panel"><h2>🆕 Produtos sem vendas na Shopee</h2><p class="muted">Produtos cadastrados com zero vendas confirmadas. Itens sem retorno de vendas ficam separados como aguardando sincronização.</p><div id="zeroSalesList" class="products"><div class="empty">Carregando produtos...</div></div><h3 style="margin-top:20px">Aguardando sincronização</h3><div id="unknownSalesList" class="products"></div></div>
+<div class="panel"><h2>🆕 PRODUTO NOVO NA PLATAFORMA</h2><p class="muted">Produtos cadastrados com zero vendas confirmadas. Itens sem retorno de vendas ficam separados como aguardando sincronização.</p><div id="zeroSalesList" class="products"><div class="empty">Carregando produtos...</div></div><h3 style="margin-top:20px">Aguardando sincronização</h3><div id="unknownSalesList" class="products"></div></div>
 </section>
 <section id="mais" class="section">
 <div class="panel">
