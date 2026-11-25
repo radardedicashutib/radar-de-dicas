@@ -266,7 +266,7 @@ main{padding:0 11px}
 <button data-tab="mais" onclick="showTab('mais')">🏆 O que mais vende</button>
 <button data-tab="semvendas" onclick="showTab('semvendas')">🆕 PRODUTO NOVO NA PLATAFORMA</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
-<button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
+<button type="button" onclick="openUGCTutorials()">🎬 Aprenda a criar vídeos Unboxing, UGC e POV</button>
 <button data-tab="video" onclick="openRadarFeature('video')">🎥 Minhas dicas</button>
 <button data-tab="salles" id="sallesTab" onclick="openRadarFeature('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
@@ -535,6 +535,17 @@ function showTab(name){
  if(name==='salles'&&(isAdmin||hasPaidMembership))renderSalles();
  // Atualiza o link temporário do vídeo sempre que o assinante abre Minhas dicas.
  if(name==='video'&&(isAdmin||hasPaidMembership||hasTrialAccess))loadSharedVideo();
+}
+
+function openUGCTutorials(){
+ // Abre a biblioteca UGC/POV dentro do Salles IA, respeitando as regras de acesso existentes.
+ showTab('salles');
+ if(!(isAdmin||hasPaidMembership))return;
+ loadTutorials();
+ setTimeout(()=>{
+  const target=$('tutorialsAccess');
+  target?.scrollIntoView({behavior:'smooth',block:'start'});
+ },350);
 }
 
 function openRadarFeature(name){
