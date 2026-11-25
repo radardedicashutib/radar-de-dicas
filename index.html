@@ -900,9 +900,10 @@ function opportunityHtml(p){
 }
 
 function competitionLevel(value){
- // Os produtos deste Radar são selecionados pelo administrador por terem pouca concorrência.
- // Portanto, a etiqueta exibida deve refletir esse critério de curadoria, não o número bruto.
- return 'Poucos afiliados divulgando';
+ // Exibe a quantidade de afiliados/concorrentes informada manualmente pelo administrador.
+ if(value===null||value===undefined||String(value).trim()==='') return 'Não informado';
+ const quantity=Math.max(0,Math.floor(numericValue(value)));
+ return `${quantity.toLocaleString('pt-BR')} AFILIADOS DIVULGANDO +`;
 }
 
 /* CARTÃO DO PRODUTO — usado em todas as listas do Radar */
@@ -929,6 +930,9 @@ function productCard(p){
    <div><b>${esc(competition)}</b><small>Concorrência</small></div>
    <div><b>${esc(p.tendencia||'—')}</b><small>Tendência</small></div>
   </div>
+  <p class="muted" style="margin:10px 0 4px;font-size:12px;line-height:1.5">
+   Dados informados no cadastro: ${sales} vendas e ${esc(competition)}. A concorrência pode aumentar a qualquer momento; os números podem mudar na Shopee.
+  </p>
   ${p.opportunityScore!==undefined?opportunityHtml(p):''}
   <div class="actions">
    ${(p.link_afiliado||p.link_produto)?`<button class="primary" onclick="openLink('${esc(id)}')">Abrir produto</button>`:''}
@@ -1067,8 +1071,23 @@ function openDashboardCard(type){
   showTab('radar'); $('q').value=''; $('commission').value='20'; $('competition').value='all'; $('category').value='all'; renderProducts();
   $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
  }
- if(type==='semvendas')showTab('semvendas');
- if(type==='mais_vende')showTab('mais');
+ if(type==='semvendas'){
+  showTab('semvendas');
+  // Leva o assinante diretamente à lista de produtos novos.
+  setTimeout(()=>{
+   const target=$('zeroSalesList');
+   target?.scrollIntoView({behavior:'smooth',block:'start'});
+  },180);
+ }
+ if(type==='mais_vende'){
+  showTab('mais');
+  // Garante a atualização da lista e rola até os produtos mais vendidos.
+  renderBest();
+  setTimeout(()=>{
+   const target=$('bestList');
+   target?.scrollIntoView({behavior:'smooth',block:'start'});
+  },180);
+ }
 }
 
 function renderDashboard(){
