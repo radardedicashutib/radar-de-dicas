@@ -459,8 +459,8 @@ main{padding:0 11px}
 <div class="panel"><h2>🎥 Gerenciar vídeo principal — 10 dicas</h2><p class="muted">Adicione, substitua ou remova o vídeo exibido na tela inicial. O vídeo será salvo no bucket videos-radar.</p><div id="mainVideoAdminControls"><label style="display:block;font-weight:800;margin:12px 0 6px">Selecionar novo vídeo</label><input type="file" id="videoFileAdmin" accept="video/*"><div class="row"><button class="primary" type="button" onclick="loadVideo('admin')">Adicionar / trocar vídeo principal</button><button class="danger" type="button" onclick="removeVideo()">Remover vídeo publicado</button></div><div id="videoAdminMessage" class="statusline"></div></div><div class="video" id="adminVideoPreview" style="margin-top:12px"><div class="video-placeholder">Prévia do vídeo principal</div></div></div><div class="panel"><h2>Gerenciar prompts virais</h2><p class="muted">Somente o administrador pode cadastrar, editar e excluir.</p><form id="promptForm" onsubmit="savePrompt(event)"><input type="hidden" id="promptEditId"><div class="formgrid"><label>Título<input id="promptTitle" required></label><label>Categoria<input id="promptCategory" placeholder="Ex.: UGC, POV, demonstração"></label><label class="wide">Prompt completo<textarea id="promptContent" rows="5" required></textarea></label></div><div class="row"><button class="primary" type="submit">Salvar prompt</button><button class="soft" type="button" onclick="clearPromptForm()">Limpar</button></div></form><div id="adminPrompts"></div></div>
 <div class="panel"><h2>Gerenciar vídeos UGC e POV</h2><p class="muted">Envie vídeos para a biblioteca paga. Esta biblioteca é separada do vídeo antigo das 10 dicas.</p><form id="tutorialForm" onsubmit="saveTutorial(event)"><input type="hidden" id="tutorialEditId"><div class="formgrid"><label>Título<input id="tutorialTitle" required></label><label>Ordem<input id="tutorialOrder" type="number" min="0" value="0"></label><label class="wide">Descrição<textarea id="tutorialDescription" rows="3"></textarea></label><label class="wide">Arquivo de vídeo<input id="tutorialFile" type="file" accept="video/*"></label></div><div class="row"><button class="primary" type="submit">Salvar vídeo</button><button class="soft" type="button" onclick="clearTutorialForm()">Limpar</button></div></form><div id="adminTutorials"></div></div>
 <div class="panel">
-<h2>Solicitações de plano</h2>
-<p class="muted">Pagamentos aprovados são registrados em radar_assinaturas. A lista administrativa abaixo continua exibindo os cadastros legados da tabela assinantes.</p>
+<h2>Cadastros e assinaturas</h2>
+<p class="muted">Visualização administrativa dos usuários cadastrados e das assinaturas registradas. Esta área apenas consulta os dados existentes.</p>
 <div id="adminRequests"></div>
 </div>
 </section>
@@ -1478,17 +1478,56 @@ async function loadAdminRequests(){
  const el=$('adminRequests');
  if(!el)return;
 
- const{data,error}=await db.from('radar_solicitacoes').select('*').order('created_at',{ascending:false});
- if(error){
-  el.textContent='Não foi possível carregar solicitações: '+error.message;
-  return;
- }
+ el.innerHTML='<div class="empty">Carregando cadastros e assinaturas...</div>';
+ try{
+  // Consulta somente as tabelas existentes. Nenhum dado é inserido, alterado ou excluído.
+  const [cadastros, assinaturas] = await Promise.all([
+   db.from('assinantes').select('user_id,email,plano,status'),
+   db.from('radar_assinaturas').select('user_id,plano,status')
+  ]);
+  if(cadastros.error)throw new Error('Tabela assinantes: '+cadastros.error.message);
+  if(assinaturas.error)throw new Error('Tabela radar_assinaturas: '+assinaturas.error.message);
 
- el.innerHTML=(data||[]).map(x=>`
-  <div class="content-card">
-   <b>${esc(x.email||x.user_id)}</b>
-   <p>Plano: ${esc(x.plano)} • Status: ${esc(x.status)}</p>
-  </div>`).join('')||'<div class="empty">Nenhuma solicitação encontrada.</div>';
+  const usuarios=new Map();
+  (cadastros.data||[]).forEach(x=>{
+   const id=String(x.user_id||'');
+   if(!id)return;
+   usuarios.set(id,{
+    user_id:id,
+    email:x.email||'E-mail não informado',
+    planoCadastro:x.plano||'Não informado',
+    statusCadastro:x.status||'Não informado',
+    assinaturas:[]
+   });
+  });
+  (assinaturas.data||[]).forEach(x=>{
+   const id=String(x.user_id||'');
+   if(!id)return;
+   if(!usuarios.has(id))usuarios.set(id,{
+    user_id:id,
+    email:'E-mail não localizado em assinantes',
+    planoCadastro:'Não informado',
+    statusCadastro:'Não informado',
+    assinaturas:[]
+   });
+   usuarios.get(id).assinaturas.push(x);
+  });
+
+  const lista=Array.from(usuarios.values());
+  el.innerHTML=lista.map(x=>{
+   const detalhes=x.assinaturas.length
+    ?x.assinaturas.map(a=>`<p>Assinatura: <b>${esc(a.plano||'Não informado')}</b> • Situação: <b>${esc(a.status||'Não informado')}</b></p>`).join('')
+    :'<p>Sem assinatura registrada.</p>';
+   return `<div class="content-card">
+    <b>${esc(x.email)}</b>
+    <p>Plano do cadastro: ${esc(x.planoCadastro)} • Status do cadastro: ${esc(x.statusCadastro)}</p>
+    ${detalhes}
+   </div>`;
+  }).join('')||'<div class="empty">Nenhum cadastro encontrado.</div>';
+ }catch(error){
+  console.error('Erro ao carregar cadastros administrativos:',error);
+  el.innerHTML='<div class="empty">Não foi possível carregar os cadastros: '+esc(error.message||'erro desconhecido')+'</div>';
+ }
 }
 
 async function loadAdminData(){
