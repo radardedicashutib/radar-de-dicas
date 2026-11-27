@@ -146,6 +146,57 @@ main{padding:0 11px}
 .formgrid{grid-template-columns:1fr}
 .formgrid .wide{grid-column:auto}
 }
+
+/* CATEGORIAS — restauração do layout de referência */
+.category-overview{
+ display:grid;
+ grid-template-columns:repeat(3,minmax(0,1fr));
+ gap:18px 28px;
+ align-items:center;
+}
+.category-overview .category-card{
+ background:linear-gradient(180deg,#f8fbff,#e8f0fa);
+ border:1px solid #c8d7e8;
+ border-radius:22px;
+ color:#17385e;
+ padding:18px 12px;
+ min-height:78px;
+ box-shadow:0 3px 10px rgba(0,0,0,.12);
+}
+.category-overview .category-card strong{
+ color:#17385e;
+ font-size:16px;
+}
+.category-overview .category-card span{
+ color:#496887;
+ font-size:12px;
+ font-weight:700;
+}
+.category-overview .category-more{
+ grid-column:2;
+ justify-self:center;
+ align-self:center;
+ width:132px;
+ height:132px;
+ border-radius:50%;
+ display:flex;
+ flex-direction:column;
+ align-items:center;
+ justify-content:center;
+ text-align:center;
+ background:linear-gradient(135deg,#ffb53e,#f04491);
+ border:5px solid #ffd56d;
+ color:#fff;
+ font-weight:950;
+ font-size:14px;
+ line-height:1.25;
+ box-shadow:0 0 18px rgba(255,173,70,.4);
+}
+@media(max-width:760px){
+ .category-overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+ .category-overview .category-more{grid-column:1/-1;width:112px;height:112px;justify-self:center}
+}
+
 </style>
 </head>
 <body>
@@ -221,7 +272,7 @@ main{padding:0 11px}
 <span class="pill hot">RADAR DE DEMANDA</span>
 </div>
 <p class="demand-subtitle">Confira as categorias e produtos com mais vendas informadas no Radar. Os resultados são organizados com base nos dados disponíveis.</p>
-<div id="categoryOverview" class="category-grid"></div>
+<div id="categoryOverview" class="category-grid category-overview"></div>
 <div class="recommendation">
 <h3>🔥 Destaque de vendas</h3>
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
@@ -954,7 +1005,7 @@ function productCard(p){
  const sales=p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''?numericValue(p.vendas).toLocaleString('pt-BR'):'Aguardando';
  const commission=commissionPercent(p);
  const commissionValue=p.comissao!==null&&p.comissao!==undefined&&p.comissao!==''?money(p.comissao):'Não informada';
- const competition=competitionLevel(p.concorrencia);
+ const affiliates=p.concorrencia!==null&&p.concorrencia!==undefined&&p.concorrencia!==''?numericValue(p.concorrencia).toLocaleString('pt-BR')+' AFILIADOS DIVULGANDO +':'—';
  const isManual=p.origem!=='shopee';
  const savedItem=saved.some(x=>String(x.produto_id)===id);
  return `<article class="product" data-product-id="${esc(id)}">${image}
@@ -966,7 +1017,7 @@ function productCard(p){
    <div><b>${sales}</b><small>Vendas</small></div>
    <div><b>${commission?commission.toFixed(1)+'%':'—'}</b><small>Comissão (%)</small></div>
    <div><b>${commissionValue}</b><small>Comissão (R$)</small></div>
-   <div><b>${esc(competition)}</b><small>Concorrência</small></div>
+   <div><b>${esc(affiliates)}</b><small>Concorrência</small></div>
    <div><b>${esc(p.tendencia||'—')}</b><small>Tendência</small></div>
   </div>
   ${p.opportunityScore!==undefined?opportunityHtml(p):''}
@@ -1690,7 +1741,15 @@ function renderDemandRadar(){
  const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
  const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
  const overview=$('categoryOverview');
- if(overview)overview.innerHTML=ranked.length?ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver lista</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(overview){
+  if(ranked.length){
+   const cards=ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
+   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais produtos">MAIS<br>PRODUTOS</div>');
+   overview.innerHTML=cards.join('');
+  }else{
+   overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
+  }
+ }
  const ranking=$('categoryRanking');
  if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
  const highlight=$('categoryHighlight');
