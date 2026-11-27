@@ -606,7 +606,10 @@ function showTab(name){
  if(name==='semvendas')loadZeroSalesProducts();
  if(name==='tendencias')renderTrends();
  if(name==='admin'&&isAdmin)loadAdminData();
- if(name==='salles'&&(isAdmin||hasPaidMembership))renderSalles();
+ if(name==='salles'&&(isAdmin||hasPaidMembership)){
+  renderSalles();
+  setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
+ }
  if(name==='autopost'&&(isAdmin||hasAutopostPro)){
   loadAutopost().catch(error=>console.error('Erro ao abrir GE AUTOPOST:',error));
   setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
@@ -1455,17 +1458,31 @@ async function loadAdminRequests(){
  const el=$('adminRequests');
  if(!el)return;
 
- const{data,error}=await db.from('radar_solicitacoes').select('*').order('created_at',{ascending:false});
+ const{data,error}=await db.from('assinantes')
+  .select('user_id,email,plano,status,criado_em')
+  .order('criado_em',{ascending:false});
  if(error){
   el.textContent='Não foi possível carregar solicitações: '+error.message;
   return;
  }
 
- el.innerHTML=(data||[]).map(x=>`
+ el.innerHTML=(data||[]).map(a=>`
   <div class="content-card">
-   <b>${esc(x.email||x.user_id)}</b>
-   <p>Plano: ${esc(x.plano)} • Status: ${esc(x.status)}</p>
-  </div>`).join('')||'<div class="empty">Nenhuma solicitação encontrada.</div>';
+   <b>${esc(a.email||a.user_id)}</b>
+   <p>Plano: ${esc(a.plano)} • Status: ${esc(a.status)}</p>
+   <div class="row">
+    <button class="soft" type="button" onclick="setMember('${String(a.user_id).replace(/'/g,"\\'")}','ativo')">Ativar</button>
+    <button class="danger" type="button" onclick="setMember('${String(a.user_id).replace(/'/g,"\\'")}','pendente')">Pendente</button>
+   </div>
+  </div>`).join('')||'<div class="empty">Nenhum assinante cadastrado.</div>';
+}
+
+async function setMember(id,status){
+ if(!isAdmin)return;
+ const{error}=await db.from('assinantes').update({status}).eq('user_id',id);
+ if(error){alert('Erro ao atualizar assinante: '+error.message);return;}
+ await loadAdminRequests();
+ alert('Status do assinante atualizado.');
 }
 
 async function loadAdminData(){
