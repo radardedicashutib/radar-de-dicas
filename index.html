@@ -323,7 +323,7 @@ main{padding:0 11px}
 <button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
-<button data-tab="video" onclick="showTab('video')">🎬 COMO CRIAR VÍDEOS UGC E POV</button>
+<button data-tab="video" onclick="showTutorials()">🎬 COMO CRIAR VÍDEOS UGC E POV</button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
@@ -353,7 +353,7 @@ main{padding:0 11px}
 <div id="weeklyRecommendations" class="recommendation-list"></div>
 </div>
 <div class="panel"><h2>📋 LISTA DE PROMPT PARA VOCÊ CRIAR VÍDEOS VIRAIS</h2><p class="muted">Prompts prontos para copiar e usar na criação dos seus vídeos.</p><div id="promptsAccess" class="content-grid"></div></div>
-<div class="panel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
+<div class="panel" id="ugcTutorialsPanel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
 <div class="panel">
 <h2>Buscar oportunidades</h2>
 <p class="muted">Digite o nome do produto e clique em Buscar na Shopee para consultar as ofertas disponíveis.</p>
@@ -631,6 +631,15 @@ function commissionPercent(p){
  const price=numericValue(p?.preco);
  const commission=numericValue(p?.comissao);
  return price>0&&commission>0?(commission/price)*100:0;
+}
+
+function showTutorials(){
+ // Os tutoriais cadastrados ficam dentro da seção Radar, não na seção do vídeo principal.
+ showTab('radar');
+ setTimeout(()=>{
+  const target=document.getElementById('ugcTutorialsPanel');
+  if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
+ },100);
 }
 
 function showTab(name){
@@ -2046,4 +2055,4 @@ initializeRadar();
 
 </script>
 </body>
-                   </html>
+ </html>
