@@ -457,7 +457,7 @@ main{padding:0 11px}
    <label>Nome do canal/conta<input id="apChannelName" required maxlength="120" placeholder="Ex.: Canal de ofertas"></label>
    <label class="wide">Identificador ou observação<input id="apChannelRef" maxlength="180" placeholder="@canal, nome da Página ou observação"></label>
   </div><button class="primary" type="submit">Adicionar canal</button></form>
-  <div class="notice" style="margin-top:14px">
+    <div class="notice" style="margin-top:14px">
    <b>Conectar uma Página do Facebook</b><br>
    Autorize o GE AUTOPOST a acessar as Páginas que você administra. Não informe sua senha do Facebook aqui.
    <div class="row"><button class="primary" type="button" id="apFacebookConnect" onclick="apConnectFacebook()">🔵 Conectar Facebook</button></div>
@@ -1007,6 +1007,7 @@ async function apConnectFacebook() {
     if (button) { button.disabled = false; button.textContent = '🔵 Conectar Facebook'; }
   }
 }
+
 
 async function apSaveChannel(e) {
   e.preventDefault();
@@ -1996,7 +1997,6 @@ function renderDemandRadar(){
  if(overview){
   if(ranked.length){
    const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
-   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais vendido">MAIS<br>VENDIDO</div>');
    overview.innerHTML=cards.join('');
   }else{
    overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -2006,7 +2006,10 @@ function renderDemandRadar(){
  if(ranking){
   if(ranked.length){
    const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Destaque de vendas">DESTAQUE<br>DE VENDAS</div>');
+   const salesBadge=`<button type="button" class="category-more" aria-label="Destaque de vendas" onclick="showTab('mais')">DESTAQUE<br>DE VENDAS</button>`;
+   const newBadge=zero.length?`<button type="button" class="category-more category-new" aria-label="Produto novo na plataforma" onclick="openNewPlatformProduct()">PRODUTO NOVO<br>NA PLATAFORMA</button>`:'';
+   categoryCards.splice(Math.min(3,categoryCards.length),0,salesBadge);
+   if(newBadge)categoryCards.splice(Math.min(7,categoryCards.length),0,newBadge);
    ranking.innerHTML=categoryCards.join('');
   }else{
    ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -2025,6 +2028,18 @@ function renderDemandRadar(){
   weekly.innerHTML=picks.length?picks.map(p=>`<button type="button" class="recommendation-item" style="text-align:left;color:inherit;cursor:pointer" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">${p.imagem_url?`<img src="${esc(p.imagem_url)}" alt="${esc(p.nome)}">`:''}<strong>${esc(p.nome)}</strong><small>${numericValue(p.vendas)>0?numericValue(p.vendas)+' vendas informadas':'Produto cadastrado pelo administrador'}</small><p class="muted">Toque para abrir o produto na lista.</p></button>`).join(''):'<div class="empty">Nenhum produto cadastrado para recomendação.</div>';
  }
  updateStats();
+}
+
+function openNewPlatformProduct(){
+ const source=(manualProducts||[]).length?manualProducts:(products||[]);
+ const item=source.find(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
+ if(!item){alert('Nenhum produto com 0 vendas foi encontrado.');return;}
+ showTab('radar');
+ $('q').value=String(item.nome||'');
+ $('commission').value='all';
+ $('category').value='all';
+ renderProducts();
+ $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 
 function filterByCategory(category){
