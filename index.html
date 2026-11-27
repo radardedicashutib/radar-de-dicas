@@ -148,69 +148,53 @@ main{padding:0 11px}
 .formgrid .wide{grid-column:auto}
 }
 
-/* CATEGORIAS — os dois blocos usam o mesmo desenho */
+/* RADARES DE CATEGORIAS E PRODUTOS — itens distribuídos ao redor do centro */
 .category-overview,
 .category-ranking{
  display:grid;
  grid-template-columns:repeat(3,minmax(0,1fr));
- gap:18px 28px;
+ grid-auto-rows:minmax(82px,auto);
+ gap:14px 20px;
  align-items:center;
+ justify-items:stretch;
+ margin:18px 0 24px;
 }
 .category-overview .category-card,
 .category-ranking .category-card{
+ appearance:none;
+ width:100%; min-width:0; min-height:76px;
+ display:flex; flex-direction:column; justify-content:center; align-items:center;
  background:linear-gradient(180deg,#f8fbff,#e8f0fa);
- border:1px solid #c8d7e8;
- border-radius:22px;
- color:#17385e;
- padding:18px 12px;
- min-height:78px;
+ border:1px solid #c8d7e8; border-radius:22px;
+ color:#17385e; padding:13px 10px;
  box-shadow:0 3px 10px rgba(0,0,0,.12);
+ cursor:pointer; position:relative; z-index:2; pointer-events:auto;
 }
 .category-overview .category-card strong,
-.category-ranking .category-card strong{
- color:#17385e;
- font-size:16px;
-}
+.category-ranking .category-card strong{color:#17385e;font-size:15px;line-height:1.2}
 .category-overview .category-card span,
-.category-ranking .category-card span{
- color:#496887;
- font-size:12px;
- font-weight:700;
+.category-ranking .category-card span{color:#496887;font-size:11px;font-weight:800;margin-top:5px;line-height:1.25}
+.radar-center{
+ grid-column:2; grid-row:2;
+ width:144px; height:144px; justify-self:center; align-self:center;
+ border-radius:50%; display:flex; flex-direction:column; align-items:center; justify-content:center;
+ text-align:center; padding:12px; color:#fff; font-size:14px; font-weight:950; line-height:1.2;
+ background:linear-gradient(135deg,#ffad35,#f04491);
+ border:5px solid #ffd56d; box-shadow:0 0 22px rgba(255,173,70,.48);
 }
-.category-overview .category-more,
-.category-ranking .category-more{
- grid-column:2;
- justify-self:center;
- align-self:center;
- width:132px;
- height:132px;
- border-radius:50%;
- display:flex;
- flex-direction:column;
- align-items:center;
- justify-content:center;
- text-align:center;
- background:linear-gradient(135deg,#ffb53e,#f04491);
- border:5px solid #ffd56d;
- color:#fff;
- font-weight:950;
- font-size:14px;
- line-height:1.25;
- box-shadow:0 0 18px rgba(255,173,70,.4);
-}
+.radar-center small{display:block;font-size:10px;font-weight:800;margin-top:5px;color:#fff4d8}
+.radar-product-card{background:linear-gradient(145deg,#173b60,#0b203a)!important;border:1px solid #ff9c35!important;color:#fff!important}
+.radar-product-card strong{color:#fff!important}
+.radar-product-card span{color:#ffd39a!important}
+.radar-product-card .zero-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff9b27;box-shadow:0 0 8px #ff9b27;margin-right:5px}
+.radar-extra-items{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 @media(max-width:760px){
- .category-overview,
- .category-ranking{
-  grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:12px;
- }
- .category-overview .category-more,
- .category-ranking .category-more{
-  grid-column:1/-1;
-  width:112px;
-  height:112px;
-  justify-self:center;
- }
+ .category-overview,.category-ranking{grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+ .radar-center{width:104px;height:104px;font-size:11px;border-width:4px;padding:7px}
+ .category-overview .category-card,.category-ranking .category-card{min-height:68px;padding:9px 5px;border-radius:15px}
+ .category-overview .category-card strong,.category-ranking .category-card strong{font-size:12px}
+ .category-overview .category-card span,.category-ranking .category-card span{font-size:9px}
+ .radar-extra-items{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
 </style>
 </head>
@@ -270,31 +254,30 @@ main{padding:0 11px}
 <button type="button" class="stat" onclick="openDashboardCard('semvendas')"><strong id="countNew">0</strong><small>PRODUTOS SEM VENDAS NA SHOPEE</small></button>
 <button type="button" class="stat" onclick="openDashboardCard('mais_vende')"><strong id="countChampions">0</strong><small>O QUE MAIS VENDE</small></button>
 </section>  <nav class="tabs">
-<button class="active" data-tab="radar" onclick="showTab('radar')">🔎 Radar</button>
-<button data-tab="mais" onclick="showTab('mais')">🏆 O que mais vende</button>
-<button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
-<button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
-<button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
-<button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
-<button data-tab="viral" id="viralTab" onclick="showTab('viral')">🎬 Criar vídeo UGC-POV VIRAL <span class="pill hot">PRO</span></button>
-<button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
-<button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
+<button type="button" class="active" data-tab="radar" onclick="showTab('radar')">🔎 Radar</button>
+<button type="button" data-tab="mais" onclick="showTab('mais')">🏆 O que mais vende</button>
+<button type="button" data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
+<button type="button" data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
+<button type="button" data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
+<button type="button" data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
+<button type="button" data-tab="viral" id="viralTab" onclick="showTab('viral')">🎬 Criar vídeo UGC-POV VIRAIS <span class="pill hot">PRO</span></button>
+<button type="button" data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
+<button type="button" data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
+<section id="radar" class="section active">
 <div class="panel">
 <div class="demand-heading">
 <h2>🏆 O que mais vende</h2>
 <span class="pill hot">RADAR DE DEMANDA</span>
 </div>
 <p class="demand-subtitle">Confira as categorias e produtos com mais vendas informadas no Radar. Os resultados são organizados com base nos dados disponíveis.</p>
+<div class="section-label">Categorias de produtos mais vendidos</div>
 <div id="categoryOverview" class="category-grid category-overview"></div>
-<div class="recommendation">
-<h3>🆕 Produto novo na plataforma</h3>
-<div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
-</div>
-<div class="section-label">Categorias com produtos cadastrados</div>
+<div class="section-label">Produtos novos na plataforma</div>
 <div id="categoryRanking" class="category-grid category-overview category-ranking"></div>
+<div id="categoryHighlight" class="hidden"></div>
 </div>
 <div class="panel">
 <div class="demand-heading">
@@ -330,6 +313,7 @@ main{padding:0 11px}
 <div id="searchMessage" class="statusline"></div>
 </div>
 <div id="productList" class="products"></div>
+</section>
 </section>
 <section id="semvendas" class="section">
 <div class="panel"><h2>🆕 Produtos sem vendas na Shopee</h2><p class="muted">Produtos cadastrados com zero vendas confirmadas. Itens sem retorno de vendas ficam separados como aguardando sincronização.</p><div id="zeroSalesList" class="products"><div class="empty">Carregando produtos...</div></div><h3 style="margin-top:20px">Aguardando sincronização</h3><div id="unknownSalesList" class="products"></div></div>
@@ -1914,40 +1898,41 @@ function renderProducts(){
 
 function renderDemandRadar(){
  const source=(manualProducts||[]).length?manualProducts:(products||[]);
- const total=source.length;
  const categories={};
  source.forEach(p=>{const name=String(p.categoria||'Outros').trim()||'Outros';categories[name]=(categories[name]||0)+1;});
  const ranked=Object.entries(categories).sort((a,b)=>b[1]-a[1]);
- const bySales=[...source].sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
- const high=[...source].filter(p=>commissionPercent(p)>20).sort((a,b)=>commissionPercent(b)-commissionPercent(a));
  const zero=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
- const overview=$('categoryOverview');
- if(overview){
-  if(ranked.length){
-   const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   overview.innerHTML=cards.join('');
-  }else{
-   overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
-  }
+ const makeCategoryCard=([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) — tocar para ver</span></button>`;
+ const categoryRadar=$('categoryOverview');
+ if(categoryRadar){
+  const nodes=ranked.map(makeCategoryCard);
+  const center='<div class="radar-center">🏆<br>O QUE MAIS VENDE<small>CATEGORIAS</small></div>';
+  const spacer='<div class="radar-spacer" aria-hidden="true"></div>';
+  const slots=[nodes[0]||spacer,nodes[1]||spacer,nodes[2]||spacer,nodes[3]||spacer,center,nodes[4]||spacer,nodes[5]||spacer,nodes[6]||spacer,nodes[7]||spacer];
+  categoryRadar.innerHTML=slots.join('')+(nodes.length>8?`<div class="radar-extra-items">${nodes.slice(8).join('')}</div>`:'');
+  if(!ranked.length)categoryRadar.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
  }
- const ranking=$('categoryRanking');
- if(ranking){
-  if(ranked.length){
-   const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   ranking.innerHTML=categoryCards.join('');
-  }else{
-   ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
-  }
+ const newRadar=$('categoryRanking');
+ if(newRadar){
+  const cards=zero.map(p=>`<button type="button" class="category-card radar-product-card" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)"><strong>${esc(p.nome||'Produto')}</strong><span><i class="zero-dot"></i>0 vendas • ${esc(p.categoria||'Outros')}</span></button>`);
+  const center='<div class="radar-center">🆕<br>PRODUTOS NOVOS<small>NA PLATAFORMA</small></div>';
+  const spacer='<div class="radar-spacer" aria-hidden="true"></div>';
+  const slots=[cards[0]||spacer,cards[1]||spacer,cards[2]||spacer,cards[3]||spacer,center,cards[4]||spacer,cards[5]||spacer,cards[6]||spacer,cards[7]||spacer];
+  newRadar.innerHTML=slots.join('')+(cards.length>8?`<div class="radar-extra-items">${cards.slice(8).join('')}</div>`:'');
+  if(!zero.length)newRadar.innerHTML='<div class="empty">Nenhum produto cadastrado com exatamente 0 vendas.</div>';
  }
- const highlight=$('categoryHighlight');
- if(highlight){
-  const newPlatform=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
-  highlight.innerHTML=newPlatform.length
-   ?newPlatform.map(p=>`<div class="content-card" style="margin:8px 0"><span style="display:inline-flex;align-items:center;gap:7px;color:#ffb35c;font-weight:850"><span style="width:10px;height:10px;border-radius:50%;background:#ff9b27;display:inline-block;flex:0 0 10px"></span>0 vendas</span><h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'Outros')} • ${money(p.preco)}</p><button class="soft" type="button" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">Ver produto</button></div>`).join('')
-   :'<div class="empty">Nenhum produto novo na plataforma com zero vendas informado.</div>';
+ // Keep the category filter synchronized with every category actually registered.
+ const categorySelect=$('category');
+ if(categorySelect){
+  const selected=categorySelect.value;
+  const fixed=[...categorySelect.options].filter(o=>!o.dataset.dynamic);
+  categorySelect.innerHTML=fixed.map(o=>`<option value="${esc(o.value)}">${esc(o.textContent)}</option>`).join('');
+  ranked.forEach(([name])=>{if(![...categorySelect.options].some(o=>o.value===name)){const option=document.createElement('option');option.value=name;option.textContent=name;option.dataset.dynamic='1';categorySelect.appendChild(option);}});
+  if([...categorySelect.options].some(o=>o.value===selected))categorySelect.value=selected;
  }
  const weekly=$('weeklyRecommendations');
  if(weekly){
+  const bySales=[...source].sort((a,b)=>numericValue(b.vendas)-numericValue(a.vendas));
   let picks=bySales.filter(p=>numericValue(p.vendas)>0).slice(0,3);
   if(!picks.length)picks=source.slice(0,3);
   if(hasTrialAccess&&!hasPaidMembership&&!isAdmin)picks=picks.slice(0,1);
