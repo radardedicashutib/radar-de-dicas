@@ -275,6 +275,7 @@ main{padding:0 11px}
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
 <button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
+<button data-tab="viral" id="viralTab" onclick="showTab('viral')">🎬 Criar vídeos virais UGC / POV <span class="pill hot">PRO</span></button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
@@ -302,8 +303,6 @@ main{padding:0 11px}
 <p class="demand-subtitle">Produtos com vendas informadas e boas oportunidades para divulgar. Confira os resultados antes de escolher o que postar.</p>
 <div id="weeklyRecommendations" class="recommendation-list"></div>
 </div>
-<div class="panel"><h2>📋 LISTA DE PROMPT PARA VOCÊ CRIAR VÍDEOS VIRAIS</h2><p class="muted">Prompts prontos para copiar e usar na criação dos seus vídeos.</p><div id="promptsAccess" class="content-grid"></div></div>
-<div class="panel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
 <div class="panel">
 <h2>Buscar oportunidades</h2>
 <p class="muted">Digite o nome do produto e clique em Buscar na Shopee para consultar as ofertas disponíveis.</p>
@@ -373,6 +372,10 @@ main{padding:0 11px}
 <div class="video-placeholder">O vídeo aparecerá aqui para os assinantes ativos.</div>
 </div>
 </div>
+</section>
+<section id="viral" class="section">
+<div class="panel"><h2>📋 LISTA DE PROMPT PARA VOCÊ CRIAR VÍDEOS VIRAIS</h2><p class="muted">Prompts prontos para copiar e usar na criação dos seus vídeos.</p><div id="promptsAccess" class="content-grid"></div></div>
+<div class="panel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
 </section>
 <section id="salles" class="section">
 <div class="panel">
@@ -586,6 +589,10 @@ function commissionPercent(p){
 function showTab(name){
  if(name==='salles'&&!isAdmin&&!hasPaidMembership){
   alert('O Salles IA é exclusivo para assinantes pagos ativos.');
+  return;
+ }
+ if(name==='viral'&&!isAdmin&&!hasPaidMembership){
+  alert('A área Criar vídeos virais UGC / POV é exclusiva para assinantes pagos ativos.');
   return;
  }
  if(name==='admin'&&!isAdmin)return;
@@ -1168,7 +1175,7 @@ function productCard(p){
  const isManual=p.origem!=='shopee';
  const savedItem=saved.some(x=>String(x.produto_id)===id);
  return `<article class="product" data-product-id="${esc(id)}">${image}
-  <span class="pill">${esc(p.categoria||'Produto')}</span>
+  <span class="pill">${esc(p.categoria||'Produto')}</span>${p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&Number(p.vendas)===0?` <span class="new-platform-label" style="display:inline-flex;align-items:center;gap:6px;margin-left:7px;font-size:12px;font-weight:700;color:#16803d"><span style="width:8px;height:8px;border-radius:50%;background:#22c55e;display:inline-block"></span>Produto novo na plataforma</span>`:''}
   <h3>${name}</h3>
   <p class="muted">${esc(p.descricao||'')}</p>
   <div class="metrics">
