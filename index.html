@@ -98,7 +98,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 .demand-heading h2{margin:0}
 .demand-subtitle{color:#b8c9df;font-size:13px;line-height:1.5}
 .category-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px;margin:15px 0}
-.category-card{background:linear-gradient(145deg,#173b60,#0b203a);border:1px solid #32668e;border-radius:14px;padding:13px;text-align:center;min-width:0}
+.category-card{appearance:none;width:100%;cursor:pointer;position:relative;z-index:2;background:linear-gradient(145deg,#173b60,#0b203a);border:1px solid #32668e;border-radius:14px;padding:13px;text-align:center;min-width:0;pointer-events:auto;transition:transform .15s,box-shadow .15s}
+.category-card:hover,.category-card:focus-visible{transform:translateY(-2px);box-shadow:0 0 0 3px rgba(0,166,255,.28);outline:none}
 .category-card strong{display:block;font-size:15px;color:white}
 .category-card span{display:block;font-size:11px;color:#b8c9df;margin-top:5px}
 .category-card.best{border:1px solid #ff9c35;background:linear-gradient(145deg,#633a1b,#281d2a)}
@@ -275,7 +276,7 @@ main{padding:0 11px}
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
 <button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
-<button data-tab="radar" id="viralTab" onclick="showTab('radar')">🎬 Criar vídeo <span class="pill hot">PRO</span></button>
+<button data-tab="viral" id="viralTab" onclick="showTab('viral')">🎬 Criar vídeo UGC-POV VIRAL <span class="pill hot">PRO</span></button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
@@ -1923,8 +1924,7 @@ function renderDemandRadar(){
  const overview=$('categoryOverview');
  if(overview){
   if(ranked.length){
-   const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
-   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais vendido">MAIS<br>VENDIDO</div>');
+   const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
    overview.innerHTML=cards.join('');
   }else{
    overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -1934,7 +1934,6 @@ function renderDemandRadar(){
  if(ranking){
   if(ranked.length){
    const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Produto novo na plataforma">PRODUTO NOVO<br>NA PLATAFORMA</div>');
    ranking.innerHTML=categoryCards.join('');
   }else{
    ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -1944,7 +1943,7 @@ function renderDemandRadar(){
  if(highlight){
   const newPlatform=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
   highlight.innerHTML=newPlatform.length
-   ?newPlatform.map(p=>`<div class="content-card" style="margin:8px 0"><span style="display:inline-flex;align-items:center;gap:7px;color:#62efb2;font-weight:850"><span style="width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block"></span>Produto novo na plataforma</span><h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'Outros')} • ${money(p.preco)}</p><button class="soft" type="button" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">Ver produto</button></div>`).join('')
+   ?newPlatform.map(p=>`<div class="content-card" style="margin:8px 0"><span style="display:inline-flex;align-items:center;gap:7px;color:#ffb35c;font-weight:850"><span style="width:10px;height:10px;border-radius:50%;background:#ff9b27;display:inline-block;flex:0 0 10px"></span>0 vendas</span><h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'Outros')} • ${money(p.preco)}</p><button class="soft" type="button" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">Ver produto</button></div>`).join('')
    :'<div class="empty">Nenhum produto novo na plataforma com zero vendas informado.</div>';
  }
  const weekly=$('weeklyRecommendations');
@@ -1958,7 +1957,14 @@ function renderDemandRadar(){
 }
 
 function filterByCategory(category){
- showTab('radar'); $('category').value=category; $('commission').value='all'; renderProducts(); $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+ showTab('radar');
+ const categorySelect=$('category');
+ if(categorySelect){categorySelect.value=category;}
+ if($('commission'))$('commission').value='all';
+ if($('competition'))$('competition').value='all';
+ if($('q'))$('q').value='';
+ renderProducts();
+ $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function showProductInRadar(id){
  showTab('radar'); $('q').value=''; $('commission').value='all'; $('category').value='all'; renderProducts();
