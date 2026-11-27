@@ -147,14 +147,16 @@ main{padding:0 11px}
 .formgrid .wide{grid-column:auto}
 }
 
-/* CATEGORIAS — restauração do layout de referência */
-.category-overview{
+/* CATEGORIAS — os dois blocos usam o mesmo desenho */
+.category-overview,
+.category-ranking{
  display:grid;
  grid-template-columns:repeat(3,minmax(0,1fr));
  gap:18px 28px;
  align-items:center;
 }
-.category-overview .category-card,\n.category-ranking .category-card{
+.category-overview .category-card,
+.category-ranking .category-card{
  background:linear-gradient(180deg,#f8fbff,#e8f0fa);
  border:1px solid #c8d7e8;
  border-radius:22px;
@@ -163,16 +165,19 @@ main{padding:0 11px}
  min-height:78px;
  box-shadow:0 3px 10px rgba(0,0,0,.12);
 }
-.category-overview .category-card strong,\n.category-ranking .category-card strong{
+.category-overview .category-card strong,
+.category-ranking .category-card strong{
  color:#17385e;
  font-size:16px;
 }
-.category-overview .category-card span,\n.category-ranking .category-card span{
+.category-overview .category-card span,
+.category-ranking .category-card span{
  color:#496887;
  font-size:12px;
  font-weight:700;
 }
-.category-overview .category-more,\n.category-ranking .category-more{
+.category-overview .category-more,
+.category-ranking .category-more{
  grid-column:2;
  justify-self:center;
  align-self:center;
@@ -193,10 +198,19 @@ main{padding:0 11px}
  box-shadow:0 0 18px rgba(255,173,70,.4);
 }
 @media(max-width:760px){
- .category-overview{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
- .category-overview .category-more,\n.category-ranking .category-more{grid-column:1/-1;width:112px;height:112px;justify-self:center}
+ .category-overview,
+ .category-ranking{
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:12px;
+ }
+ .category-overview .category-more,
+ .category-ranking .category-more{
+  grid-column:1/-1;
+  width:112px;
+  height:112px;
+  justify-self:center;
+ }
 }
-
 </style>
 </head>
 <body>
@@ -1743,8 +1757,8 @@ function renderDemandRadar(){
  const overview=$('categoryOverview');
  if(overview){
   if(ranked.length){
-   const cards=ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
-   
+   const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
+   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais vendido">MAIS<br>VENDIDO</div>');
    overview.innerHTML=cards.join('');
   }else{
    overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
