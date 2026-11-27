@@ -275,7 +275,7 @@ main{padding:0 11px}
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
 <button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
-<button data-tab="viral" id="viralTab" onclick="showTab('viral')">🎬 Criar vídeos virais UGC / POV <span class="pill hot">PRO</span></button>
+<button data-tab="radar" id="viralTab" onclick="showTab('radar')">🎬 Criar vídeo <span class="pill hot">PRO</span></button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
@@ -289,7 +289,7 @@ main{padding:0 11px}
 <p class="demand-subtitle">Confira as categorias e produtos com mais vendas informadas no Radar. Os resultados são organizados com base nos dados disponíveis.</p>
 <div id="categoryOverview" class="category-grid category-overview"></div>
 <div class="recommendation">
-<h3>🔥 Destaque de vendas</h3>
+<h3>🆕 Produto novo na plataforma</h3>
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
 </div>
 <div class="section-label">Categorias com produtos cadastrados</div>
@@ -1934,7 +1934,7 @@ function renderDemandRadar(){
  if(ranking){
   if(ranked.length){
    const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Destaque de vendas">DESTAQUE<br>DE VENDAS</div>');
+   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Produto novo na plataforma">PRODUTO NOVO<br>NA PLATAFORMA</div>');
    ranking.innerHTML=categoryCards.join('');
   }else{
    ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -1942,8 +1942,10 @@ function renderDemandRadar(){
  }
  const highlight=$('categoryHighlight');
  if(highlight){
-  if(bySales.length&&numericValue(bySales[0].vendas)>0){const p=bySales[0];highlight.innerHTML=`<b class="highlight">${esc(p.nome)}</b><p>${numericValue(p.vendas).toLocaleString('pt-BR')} vendas informadas • ${esc(p.categoria||'Outros')}</p><button class="soft" type="button" onclick="showTab('mais')">Ver produtos mais vendidos</button>`;}
-  else highlight.textContent=total?'Há produtos cadastrados, mas nenhum possui vendas positivas informadas.':'Nenhum produto cadastrado.';
+  const newPlatform=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
+  highlight.innerHTML=newPlatform.length
+   ?newPlatform.map(p=>`<div class="content-card" style="margin:8px 0"><span style="display:inline-flex;align-items:center;gap:7px;color:#62efb2;font-weight:850"><span style="width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block"></span>Produto novo na plataforma</span><h3>${esc(p.nome||'Produto')}</h3><p>${esc(p.categoria||'Outros')} • ${money(p.preco)}</p><button class="soft" type="button" data-product="${esc(p.id)}" onclick="showProductInRadar(this.dataset.product)">Ver produto</button></div>`).join('')
+   :'<div class="empty">Nenhum produto novo na plataforma com zero vendas informado.</div>';
  }
  const weekly=$('weeklyRecommendations');
  if(weekly){
