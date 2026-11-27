@@ -122,7 +122,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:#19bfff;box-sh
 .opportunity-track{height:8px;background:#061329;border-radius:20px;overflow:hidden;margin-top:8px}
 .opportunity-fill{height:100%;border-radius:20px;background:linear-gradient(90deg,#ff8b24,#f52983)}
 .opportunity-note{font-size:10px;color:#a9c0d9;margin-top:7px;line-height:1.4}
-.content-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.content-card{background:#0b2543;border:1px solid #28618e;border-radius:14px;padding:14px;margin:9px 0}.content-card h3{margin:5px 0}.content-card video{display:block;width:100%;height:auto;max-height: min(70vh,560px);aspect-ratio:16/9;object-fit:contain;background:#000;border-radius:10px}.tutorial-video-wrap{width:100%;max-width:100%;overflow:hidden;background:#000;border-radius:12px;margin-top:10px}.tutorial-video-wrap video{display:block;width:100%;height:auto;max-height:70vh;min-height:180px;aspect-ratio:16/9;object-fit:contain;background:#000}.content-card pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;color:#dcecff}.shopee-import{border:1px solid #2788bf;background:linear-gradient(135deg,#102f50,#0a1d36);border-radius:14px;padding:14px;margin:12px 0}
+.content-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.content-card{background:#0b2543;border:1px solid #28618e;border-radius:14px;padding:14px;margin:9px 0}.content-card h3{margin:5px 0}.content-card video{width:100%;max-height:340px;background:#000;border-radius:10px}.content-card pre{white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;color:#dcecff}.shopee-import{border:1px solid #2788bf;background:linear-gradient(135deg,#102f50,#0a1d36);border-radius:14px;padding:14px;margin:12px 0}
 .shopee-import label{font-size:13px;font-weight:850;display:block;margin-bottom:8px}
 @media(max-width:760px){.content-grid{grid-template-columns:1fr}
 .head{align-items:flex-start;flex-direction:column}
@@ -211,55 +211,6 @@ main{padding:0 11px}
   justify-self:center;
  }
 }
-
-/* NOVO NA PLATAFORMA — produtos sem vendas */
-#categoryRanking.new-platform-list{
- display:grid;
- grid-template-columns:repeat(2,minmax(0,1fr));
- gap:16px;
- align-items:stretch;
-}
-#categoryRanking .new-platform-badge{
- grid-column:1/-1;
- justify-self:center;
- width:132px;
- height:132px;
- border-radius:50%;
- display:flex;
- align-items:center;
- justify-content:center;
- text-align:center;
- padding:12px;
- background:linear-gradient(135deg,#ffb43b,#ff7a24);
- border:5px solid #ffd36a;
- color:#fff;
- font-weight:950;
- font-size:14px;
- line-height:1.25;
- box-shadow:0 0 20px rgba(255,165,45,.42);
-}
-#categoryRanking .product{min-width:0}
-@media(max-width:760px){
- #categoryRanking.new-platform-list{grid-template-columns:1fr;gap:12px}
- #categoryRanking .new-platform-badge{width:112px;height:112px}
-}
-
-
-.category-overview .category-more-button{
- cursor:pointer;
- font-family:inherit;
- appearance:none;
- -webkit-appearance:none;
- outline-offset:5px;
-}
-.category-overview .category-more-button:hover{
- transform:scale(1.04);
- filter:brightness(1.06);
-}
-.category-overview .category-more-button:focus-visible{
- outline:3px solid #fff;
-}
-
 </style>
 </head>
 <body>
@@ -323,13 +274,12 @@ main{padding:0 11px}
 <button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
-<button data-tab="video" onclick="showTutorials()">🎬 COMO CRIAR VÍDEOS UGC E POV</button>
+<button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
-<section id="radar" class="section active">
 <div class="panel">
 <div class="demand-heading">
 <h2>🏆 O que mais vende</h2>
@@ -341,7 +291,7 @@ main{padding:0 11px}
 <h3>🔥 Destaque de vendas</h3>
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
 </div>
-<div class="section-label">Produtos sem vendas na Shopee</div>
+<div class="section-label">Categorias com produtos cadastrados</div>
 <div id="categoryRanking" class="category-grid category-overview category-ranking"></div>
 </div>
 <div class="panel">
@@ -353,7 +303,7 @@ main{padding:0 11px}
 <div id="weeklyRecommendations" class="recommendation-list"></div>
 </div>
 <div class="panel"><h2>📋 LISTA DE PROMPT PARA VOCÊ CRIAR VÍDEOS VIRAIS</h2><p class="muted">Prompts prontos para copiar e usar na criação dos seus vídeos.</p><div id="promptsAccess" class="content-grid"></div></div>
-<div class="panel" id="ugcTutorialsPanel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
+<div class="panel"><h2>🎬 DICAS DE COMO CRIAR VÍDEO UGC E POV ULTRA-REALISTA</h2><p class="muted">Biblioteca de vídeos e tutoriais para aprender a produzir conteúdo UGC e POV.</p><div id="tutorialsAccess" class="content-grid"></div></div>
 <div class="panel">
 <h2>Buscar oportunidades</h2>
 <p class="muted">Digite o nome do produto e clique em Buscar na Shopee para consultar as ofertas disponíveis.</p>
@@ -633,15 +583,6 @@ function commissionPercent(p){
  return price>0&&commission>0?(commission/price)*100:0;
 }
 
-function showTutorials(){
- // Os tutoriais cadastrados ficam dentro da seção Radar, não na seção do vídeo principal.
- showTab('radar');
- setTimeout(()=>{
-  const target=document.getElementById('ugcTutorialsPanel');
-  if(target)target.scrollIntoView({behavior:'smooth',block:'start'});
- },100);
-}
-
 function showTab(name){
  if(name==='salles'&&!isAdmin&&!hasPaidMembership){
   alert('O Salles IA é exclusivo para assinantes pagos ativos.');
@@ -671,9 +612,8 @@ function showTab(name){
  }
  if(name==='autopost'&&(isAdmin||hasAutopostPro)){
   loadAutopost().catch(error=>console.error('Erro ao abrir GE AUTOPOST:',error));
+  setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
  }
- // Todas as abas passam a levar o usuário até o conteúdo correspondente.
- setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
 }
 
 function switchAccount(){
@@ -868,51 +808,193 @@ async function checkMembership(){
  }
 }
 
-/* GE AUTOPOST AFILIADO — dados isolados por usuário e protegidos por RLS */
-async function checkAutopostAccess(){
- hasAutopostPro=!!isAdmin;
- if(currentUser&&!isAdmin){
-  try{
-   const{data,error}=await db.from('radar_autopost_entitlements').select('id').eq('user_id',currentUser.id).eq('status','active').or('expires_at.is.null,expires_at.gt.'+new Date().toISOString()).limit(1);
-   if(error)throw error;
-   hasAutopostPro=!!(data&&data.length);
-  }catch(e){console.warn('Acesso GE AUTOPOST:',e);hasAutopostPro=false;}
- }
- const tab=$('autopostTab');if(tab)tab.classList.toggle('hidden',!isAdmin&&!hasAutopostPro);
- const access=$('autopostAccess');if(access)access.textContent=isAdmin?'Acesso administrador: controle total da central.':hasAutopostPro?'Acesso PRO ativo: você administra somente suas próprias ofertas, canais e publicações.':'Módulo bloqueado. Solicite o GE AUTOPOST AFILIADO PRO por R$ 1.000 ao ano.';
- const work=$('autopostWorkspace');if(work)work.classList.toggle('hidden',!isAdmin&&!hasAutopostPro);
+/* GE AUTOPOST AFILIADO — integração com Edge Function ge-autopost-api- */
+async function apApi(action, data = {}, id = null) {
+  const { data: result, error } = await db.functions.invoke('ge-autopost-api-', {
+    body: { action, data, id }
+  });
+  if (error) {
+    let detail = result?.error || error.message;
+    try {
+      if (error.context && typeof error.context.json === 'function') {
+        const body = await error.context.json();
+        detail = body.error || body.message || detail;
+      }
+    } catch (_) {}
+    throw new Error(detail || 'Falha na comunicação com o servidor.');
+  }
+  if (!result?.success) throw new Error(result?.error || 'Operação não concluída.');
+  return result.data;
 }
-function apSafeUrl(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:'';}catch{return '';}}
-async function loadAutopost(){
- if(!currentUser)return;
- await checkAutopostAccess();if(!isAdmin&&!hasAutopostPro)return;
- const uid=currentUser.id;
- const [o,c,p]=await Promise.all([
-  db.from('radar_autopost_offers').select('*').order('created_at',{ascending:false}),
-  db.from('radar_autopost_channels').select('*').order('created_at',{ascending:false}),
-  db.from('radar_autopost_publications').select('*,radar_autopost_offers(title),radar_autopost_channels(name,provider)').order('created_at',{ascending:false})
- ]);
- for(const r of [o,c,p])if(r.error){console.error('GE AUTOPOST:',r.error);}
- apOffers=o.data||[];apChannels=c.data||[];apPublications=p.data||[];
- $('apOfferCount').textContent=apOffers.length;$('apChannelCount').textContent=apChannels.length;
- $('apQueueCount').textContent=apPublications.filter(x=>['queued','draft'].includes(x.status)).length;
- $('apPublishedCount').textContent=apPublications.filter(x=>x.status==='published').length;
- const options=(arr,placeholder)=>'<option value="">'+placeholder+'</option>'+arr.map(x=>`<option value="${esc(x.id)}">${esc(x.title||x.name)}</option>`).join('');
- $('apCopyOffer').innerHTML=options(apOffers,'Selecione uma oferta');$('apPublicationOffer').innerHTML=options(apOffers,'Selecione uma oferta');$('apPublicationChannel').innerHTML=options(apChannels,'Selecione um canal');
- $('apChannelList').innerHTML=apChannels.map(x=>`<div class="content-card"><b>${esc(x.name)}</b><p>${esc(x.provider)} · ${esc(x.account_ref||'Sem identificador')}</p><small>Status: ${esc(x.connection_status||'manual')}</small><div class="row"><button class="danger" onclick="apDelete('radar_autopost_channels','${esc(x.id)}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum canal cadastrado.</div>';
- $('apPublicationList').innerHTML=apPublications.map(x=>`<div class="content-card"><b>${esc(x.radar_autopost_offers?.title||'Oferta')}</b><p>${esc(x.radar_autopost_channels?.name||'Canal')} · ${esc(x.status)}</p><small>${x.scheduled_at?'Agendado: '+esc(new Date(x.scheduled_at).toLocaleString('pt-BR')):'Sem agendamento'}</small><div class="row"><button class="danger" onclick="apDelete('radar_autopost_publications','${esc(x.id)}')">Excluir registro</button></div></div>`).join('')||'<div class="empty">Nenhuma publicação registrada.</div>';
- $('apReport').innerHTML=`<div class="content-card"><b>${apOffers.length}</b><p>Ofertas cadastradas</p></div><div class="content-card"><b>${apChannels.length}</b><p>Canais registrados</p></div><div class="content-card"><b>${apPublications.length}</b><p>Publicações registradas</p></div>`;
+
+async function checkAutopostAccess() {
+  hasAutopostPro = false;
+  if (currentUser) {
+    if (isAdmin) {
+      hasAutopostPro = true;
+    } else {
+      try {
+        await apApi('offers.list');
+        hasAutopostPro = true;
+      } catch (e) {
+        console.warn('Acesso GE AUTOPOST:', e.message);
+        hasAutopostPro = false;
+      }
+    }
+  }
+  const tab = $('autopostTab');
+  if (tab) tab.classList.toggle('hidden', !isAdmin && !hasAutopostPro);
+  const access = $('autopostAccess');
+  if (access) access.textContent = isAdmin
+    ? 'Acesso administrador: controle total da central.'
+    : hasAutopostPro
+      ? 'Acesso PRO ativo: você administra somente suas próprias ofertas, canais e publicações.'
+      : 'Módulo bloqueado. Solicite o GE AUTOPOST AFILIADO PRO por R$ 1.000 ao ano.';
+  const work = $('autopostWorkspace');
+  if (work) work.classList.toggle('hidden', !isAdmin && !hasAutopostPro);
 }
-async function apSaveOffer(e){e.preventDefault();if(!currentUser||(!isAdmin&&!hasAutopostPro))return;
- const payload={user_id:currentUser.id,title:$('apTitle').value.trim(),description:$('apDescription').value.trim(),price:numericValue($('apPrice').value)||null,old_price:numericValue($('apOldPrice').value)||null,original_url:apSafeUrl($('apOriginalUrl').value)||null,affiliate_url:apSafeUrl($('apAffiliateUrl').value)||null,image_url:apSafeUrl($('apImageUrl').value)||null};
- const{error}=await db.from('radar_autopost_offers').insert(payload);if(error){message('apOfferMessage','Erro ao salvar: '+error.message,'error');return;} $('apOfferForm').reset();message('apOfferMessage','Oferta salva na sua área.','ok');await loadAutopost();}
-async function apSaveChannel(e){e.preventDefault();if(!currentUser||(!isAdmin&&!hasAutopostPro))return;
- const{error}=await db.from('radar_autopost_channels').insert({user_id:currentUser.id,provider:$('apProvider').value,name:$('apChannelName').value.trim(),account_ref:$('apChannelRef').value.trim()||null,connection_status:'manual'});
- if(error){alert('Não foi possível salvar o canal: '+error.message);return;} $('apChannelForm').reset();await loadAutopost();}
-function apGenerateCopy(){const x=apOffers.find(v=>v.id===$('apCopyOffer').value);if(!x){$('apGeneratedText').value='';return;}const price=x.price?`\n💰 Por ${money(x.price)}`:'';const old=x.old_price?`\nAntes: ${money(x.old_price)}`:'';$('apGeneratedText').value=`🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description||'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${x.affiliate_url||x.original_url||''}\n\n#oferta #promoção #achadinhos`;}
-function apCopyText(){const t=$('apGeneratedText').value;if(!t){alert('Gere um anúncio primeiro.');return;}navigator.clipboard?.writeText(t).then(()=>alert('Anúncio copiado!')).catch(()=>{$('apGeneratedText').select();document.execCommand('copy');alert('Anúncio copiado!');});}
-async function apQueuePublication(e){e.preventDefault();if(!currentUser||(!isAdmin&&!hasAutopostPro))return;const scheduled=$('apScheduleAt').value;const payload={user_id:currentUser.id,offer_id:$('apPublicationOffer').value,channel_id:$('apPublicationChannel').value,status:$('apPublicationStatus').value,scheduled_at:scheduled?new Date(scheduled).toISOString():null};const{error}=await db.from('radar_autopost_publications').insert(payload);if(error){alert('Erro ao registrar publicação: '+error.message);return;} $('apPublicationForm').reset();await loadAutopost();}
-async function apDelete(table,id){if(!confirm('Deseja excluir este registro?'))return;const{error}=await db.from(table).delete().eq('id',id);if(error){alert(error.message);return;}await loadAutopost();}
+
+function apSafeUrl(value) {
+  try {
+    const u = new URL(value);
+    return ['http:', 'https:'].includes(u.protocol) ? u.href : '';
+  } catch (_) { return ''; }
+}
+
+async function loadAutopost() {
+  if (!currentUser) return;
+  await checkAutopostAccess();
+  if (!isAdmin && !hasAutopostPro) return;
+  try {
+    const [offers, channels, publications] = await Promise.all([
+      apApi('offers.list'), apApi('channels.list'), apApi('publications.list')
+    ]);
+    apOffers = offers || [];
+    apChannels = channels || [];
+    apPublications = publications || [];
+
+    $('apOfferCount').textContent = apOffers.length;
+    $('apChannelCount').textContent = apChannels.length;
+    $('apQueueCount').textContent = apPublications.filter(x => ['queued', 'draft'].includes(x.status)).length;
+    $('apPublishedCount').textContent = apPublications.filter(x => x.status === 'published').length;
+
+    const options = (arr, placeholder) => '<option value="">' + placeholder + '</option>' +
+      arr.map(x => `<option value="${esc(x.id)}">${esc(x.title || x.name)}</option>`).join('');
+    $('apCopyOffer').innerHTML = options(apOffers, 'Selecione uma oferta');
+    $('apPublicationOffer').innerHTML = options(apOffers, 'Selecione uma oferta');
+    $('apPublicationChannel').innerHTML = options(apChannels, 'Selecione um canal');
+
+    $('apChannelList').innerHTML = apChannels.map(x => `
+      <div class="content-card"><b>${esc(x.name)}</b>
+      <p>${esc(x.provider)} · ${esc(x.account_ref || 'Sem identificador')}</p>
+      <small>Status: ${esc(x.connection_status || 'manual')}</small>
+      <div class="row"><button class="danger" onclick="apDelete('radar_autopost_channels','${esc(x.id)}')">Excluir</button></div></div>
+    `).join('') || '<div class="empty">Nenhum canal cadastrado.</div>';
+
+    $('apPublicationList').innerHTML = apPublications.map(x => {
+      const offer = apOffers.find(o => String(o.id) === String(x.offer_id));
+      const channel = apChannels.find(c => String(c.id) === String(x.channel_id));
+      return `<div class="content-card"><b>${esc(offer?.title || 'Oferta')}</b>
+        <p>${esc(channel?.name || 'Canal')} · ${esc(x.status)}</p>
+        <small>${x.scheduled_at ? 'Agendado: ' + esc(new Date(x.scheduled_at).toLocaleString('pt-BR')) : 'Sem agendamento'}</small>
+        <div class="row"><button class="danger" onclick="apDelete('radar_autopost_publications','${esc(x.id)}')">Excluir registro</button></div></div>`;
+    }).join('') || '<div class="empty">Nenhuma publicação registrada.</div>';
+
+    $('apReport').innerHTML = `<div class="content-card"><b>${apOffers.length}</b><p>Ofertas cadastradas</p></div>
+      <div class="content-card"><b>${apChannels.length}</b><p>Canais registrados</p></div>
+      <div class="content-card"><b>${apPublications.length}</b><p>Publicações registradas</p></div>`;
+  } catch (e) {
+    console.error('GE AUTOPOST:', e);
+    message('apOfferMessage', 'Erro ao carregar a central: ' + e.message, 'error');
+  }
+}
+
+async function apSaveOffer(e) {
+  e.preventDefault();
+  if (!currentUser || (!isAdmin && !hasAutopostPro)) return;
+  const payload = {
+    title: $('apTitle').value.trim(),
+    description: $('apDescription').value.trim(),
+    price: numericValue($('apPrice').value) || null,
+    old_price: numericValue($('apOldPrice').value) || null,
+    original_url: apSafeUrl($('apOriginalUrl').value) || null,
+    affiliate_url: apSafeUrl($('apAffiliateUrl').value) || null,
+    image_url: apSafeUrl($('apImageUrl').value) || null
+  };
+  try {
+    await apApi('offers.create', payload);
+    $('apOfferForm').reset();
+    message('apOfferMessage', 'Oferta salva na sua área.', 'ok');
+    await loadAutopost();
+  } catch (e) { message('apOfferMessage', 'Erro ao salvar: ' + e.message, 'error'); }
+}
+
+async function apSaveChannel(e) {
+  e.preventDefault();
+  if (!currentUser || (!isAdmin && !hasAutopostPro)) return;
+  const payload = {
+    provider: $('apProvider').value,
+    name: $('apChannelName').value.trim(),
+    account_ref: $('apChannelRef').value.trim() || null,
+    connection_status: 'manual'
+  };
+  try {
+    await apApi('channels.create', payload);
+    $('apChannelForm').reset();
+    await loadAutopost();
+    alert('Canal cadastrado com sucesso!');
+  } catch (e) { alert('Não foi possível salvar o canal: ' + e.message); }
+}
+
+function apGenerateCopy() {
+  const x = apOffers.find(v => String(v.id) === String($('apCopyOffer').value));
+  if (!x) { $('apGeneratedText').value = ''; return; }
+  const price = x.price ? `\n💰 Por ${money(x.price)}` : '';
+  const old = x.old_price ? `\nAntes: ${money(x.old_price)}` : '';
+  $('apGeneratedText').value = `🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description || 'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${x.affiliate_url || x.original_url || ''}\n\n#oferta #promoção #achadinhos`;
+}
+
+function apCopyText() {
+  const t = $('apGeneratedText').value;
+  if (!t) { alert('Gere um anúncio primeiro.'); return; }
+  navigator.clipboard?.writeText(t).then(() => alert('Anúncio copiado!')).catch(() => {
+    $('apGeneratedText').select(); document.execCommand('copy'); alert('Anúncio copiado!');
+  });
+}
+
+async function apQueuePublication(e) {
+  e.preventDefault();
+  if (!currentUser || (!isAdmin && !hasAutopostPro)) return;
+  const scheduled = $('apScheduleAt').value;
+  const payload = {
+    offer_id: $('apPublicationOffer').value,
+    channel_id: $('apPublicationChannel').value,
+    status: $('apPublicationStatus').value,
+    scheduled_at: scheduled ? new Date(scheduled).toISOString() : null
+  };
+  try {
+    await apApi('publications.create', payload);
+    $('apPublicationForm').reset();
+    await loadAutopost();
+    alert('Publicação registrada na fila!');
+  } catch (e) { alert('Erro ao registrar publicação: ' + e.message); }
+}
+
+async function apDelete(table, id) {
+  if (!confirm('Deseja excluir este registro?')) return;
+  const actions = {
+    radar_autopost_offers: 'offers.delete',
+    radar_autopost_channels: 'channels.delete',
+    radar_autopost_publications: 'publications.delete'
+  };
+  const action = actions[table];
+  if (!action) { alert('Tabela não permitida.'); return; }
+  try {
+    await apApi(action, {}, id);
+    await loadAutopost();
+    alert('Registro excluído com sucesso!');
+  } catch (e) { alert('Erro ao excluir: ' + e.message); }
+}
 
 async function loadProducts(){
  // Busca todos os registros sem filtrar por 'ativo': produtos antigos também devem aparecer.
@@ -1192,7 +1274,6 @@ async function toggleSave(id){
  }
  saved.unshift(data);
  renderSaved();
- renderProducts();
  message('appMessage','Link salvo com sucesso.','ok');
 }
 
@@ -1205,7 +1286,6 @@ async function removeSaved(id){
  }
  saved=saved.filter(x=>String(x.id)!==String(id));
  renderSaved();
- renderProducts();
 }
 
 function openLink(id){
@@ -1222,10 +1302,8 @@ async function shareProduct(id){
  if(navigator.share){
   try{await navigator.share({title:p.nome,text,url});}catch(e){}
  }else{
-  try{
-   if(navigator.clipboard?.writeText){await navigator.clipboard.writeText(text);alert('Link copiado!');}
-   else prompt('Copie o link do produto:',text);
-  }catch(error){prompt('Copie o link do produto:',text);}
+  await navigator.clipboard.writeText(text);
+  alert('Link copiado!');
  }
 }
 
@@ -1379,57 +1457,18 @@ function renderPrompts(){
 
 
 async function resolveTutorialVideo(p){
- // Compatibilidade com os nomes de campos usados em versões anteriores do cadastro.
- const fields=['video_url','url_video','arquivo_url','video_path','caminho_video',
-               'storage_path','file_path','arquivo','video','url','link_video'];
- let raw='';
- for(const field of fields){
-  const value=p?.[field];
-  if(typeof value==='string'&&value.trim()){
-   raw=value.trim();
-   break;
-  }
- }
+ const raw=String(p.video_url||p.storage_path||p.url_video||p.arquivo||'').trim();
  if(!raw)return '';
-
- const buckets=['radar-ugc-videos','videos-radar','videos-ugc','ugc-videos','radar-videos'];
- const storageBase=(typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'').replace(/\/+$/,'');
- let bucketFromUrl='';
- let pathFromUrl='';
-
- // Identifica bucket e caminho em URLs públicas ou assinadas do Supabase Storage.
- const storageMatch=raw.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/i);
- if(storageMatch){
-  bucketFromUrl=decodeURIComponent(storageMatch[1]);
-  pathFromUrl=decodeURIComponent(storageMatch[2]);
- }
- if(/^https?:\/\//i.test(raw) && !storageMatch){
-  // URL externa ou CDN: utilizar diretamente.
-  return raw;
- }
-
- let path=pathFromUrl || raw;
- let bucketCandidates=bucketFromUrl?[bucketFromUrl,...buckets.filter(b=>b!==bucketFromUrl)]:buckets;
- path=path.replace(/^\/+/, '');
- if(bucketFromUrl){
-  path=path.replace(new RegExp('^'+bucketFromUrl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/'),'');
- }
- for(const bucket of bucketCandidates){
-  try{
-   const {data,error}=await db.storage.from(bucket).createSignedUrl(path,3600);
-   if(!error&&data?.signedUrl)return data.signedUrl;
-  }catch(error){
-   console.warn('Não foi possível assinar vídeo no bucket '+bucket,error?.message||error);
-  }
-  try{
-   const {data}=db.storage.from(bucket).getPublicUrl(path);
-   if(data?.publicUrl)return data.publicUrl;
-  }catch(error){
-   console.warn('Não foi possível obter URL pública do bucket '+bucket,error?.message||error);
-  }
- }
- // Se a coluna contém URL absoluta, não a descarta caso o Storage não consiga assinar.
- return /^https?:\/\//i.test(raw)?raw:'';
+ if(/^https?:\/\//i.test(raw))return raw;
+ const path=String(p.storage_path||raw).replace(/^\/+/, '').replace(/^radar-ugc-videos\//,'');
+ try{
+  const {data,error}=await db.storage.from('radar-ugc-videos').createSignedUrl(path,3600);
+  if(!error&&data?.signedUrl)return data.signedUrl;
+ }catch(e){console.warn('Link assinado UGC:',e);}
+ try{
+  const {data}=db.storage.from('radar-ugc-videos').getPublicUrl(path);
+  return data?.publicUrl||'';
+ }catch(e){console.warn('Link público UGC:',e);return '';}
 }
 
 async function renderTutorials(){
@@ -1443,17 +1482,9 @@ async function renderTutorials(){
   target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
   const cards=await Promise.all(rows.map(async p=>{
    const videoUrl=await resolveTutorialVideo(p);
-   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<div class="tutorial-video-wrap"><video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" style="display:block;width:100%;max-width:100%;height:auto;max-height:460px;object-fit:contain;background:#000;border-radius:14px" aria-label="${esc(p.titulo||'Vídeo tutorial')}"><source src="${esc(videoUrl)}">Seu navegador não conseguiu reproduzir este vídeo. Tente abrir em outro navegador.</video></div>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
+   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<video controls playsinline preload="metadata" style="width:100%;max-width:600px;border-radius:12px" src="${esc(videoUrl)}"></video>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
   }));
   target.innerHTML=cards.join('');
-  target.querySelectorAll('video').forEach(video=>{
-   video.addEventListener('error',()=>{
-    const note=document.createElement('p');
-    note.className='statusline error';
-    note.textContent='Este navegador não conseguiu reproduzir o arquivo. Verifique se o vídeo está em MP4 (H.264/AAC) e se o arquivo está acessível no Supabase.';
-    video.parentElement?.appendChild(note);
-   },{once:true});
-  });
  }
  const admin=$('adminTutorials');
  if(admin)admin.innerHTML=isAdmin?rows.map(p=>`<div class="content-card"><b>${esc(p.titulo||'Vídeo')}</b><p>${esc(p.descricao||'')}</p><div class="row"><button class="soft" type="button" onclick="editTutorial('${esc(p.id)}')">Editar</button><button class="danger" type="button" onclick="deleteTutorial('${esc(p.id)}')">Excluir</button></div></div>`).join('')||'<div class="empty">Nenhum vídeo cadastrado.</div>':'';
@@ -1886,7 +1917,7 @@ function renderDemandRadar(){
  if(overview){
   if(ranked.length){
    const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
-   if(cards.length>3)cards.splice(3,0,'<button type="button" class="category-more category-more-button" aria-label="Abrir produtos mais vendidos" onclick="showTab(\'mais\')">MAIS<br>VENDIDO</button>');
+   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais vendido">MAIS<br>VENDIDO</div>');
    overview.innerHTML=cards.join('');
   }else{
    overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -1894,14 +1925,12 @@ function renderDemandRadar(){
  }
  const ranking=$('categoryRanking');
  if(ranking){
-  const noSales=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
-  ranking.classList.add('new-platform-list');
-  const items=noSales.map(p=>productCard(p));
-  if(items.length){
-   items.splice(Math.min(3,items.length),0,'<div class="new-platform-badge" aria-label="Novo na plataforma">NOVO NA<br>PLATAFORMA</div>');
-   ranking.innerHTML=items.join('');
+  if(ranked.length){
+   const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
+   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Destaque de vendas">DESTAQUE<br>DE VENDAS</div>');
+   ranking.innerHTML=categoryCards.join('');
   }else{
-   ranking.innerHTML='<div class="empty">Nenhum produto sem vendas informado no momento.</div>';
+   ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
   }
  }
  const highlight=$('categoryHighlight');
@@ -1920,22 +1949,12 @@ function renderDemandRadar(){
 }
 
 function filterByCategory(category){
- showTab('radar');
- const select=$('category');
- if(select && ![...select.options].some(option=>option.value===category)){
-  const option=document.createElement('option');
-  option.value=category; option.textContent=category;
-  select.appendChild(option);
- }
- if(select)select.value=category;
- $('q').value=''; $('commission').value='all'; $('competition').value='all';
- renderProducts();
- $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
+ showTab('radar'); $('category').value=category; $('commission').value='all'; renderProducts(); $('productList')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
 function showProductInRadar(id){
  showTab('radar'); $('q').value=''; $('commission').value='all'; $('category').value='all'; renderProducts();
  const cards=[...document.querySelectorAll('#productList .product')];
- const target=cards.find(card=>String(card.dataset.productId)===String(id));
+ const target=cards.find(card=>card.innerText&&card.innerText.includes((products.find(p=>String(p.id)===String(id))||{}).nome||'___'));
  (target||$('productList'))?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 function copyPrompt(id){
