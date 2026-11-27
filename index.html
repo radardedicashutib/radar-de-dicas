@@ -211,6 +211,55 @@ main{padding:0 11px}
   justify-self:center;
  }
 }
+
+/* NOVO NA PLATAFORMA — produtos sem vendas */
+#categoryRanking.new-platform-list{
+ display:grid;
+ grid-template-columns:repeat(2,minmax(0,1fr));
+ gap:16px;
+ align-items:stretch;
+}
+#categoryRanking .new-platform-badge{
+ grid-column:1/-1;
+ justify-self:center;
+ width:132px;
+ height:132px;
+ border-radius:50%;
+ display:flex;
+ align-items:center;
+ justify-content:center;
+ text-align:center;
+ padding:12px;
+ background:linear-gradient(135deg,#ffb43b,#ff7a24);
+ border:5px solid #ffd36a;
+ color:#fff;
+ font-weight:950;
+ font-size:14px;
+ line-height:1.25;
+ box-shadow:0 0 20px rgba(255,165,45,.42);
+}
+#categoryRanking .product{min-width:0}
+@media(max-width:760px){
+ #categoryRanking.new-platform-list{grid-template-columns:1fr;gap:12px}
+ #categoryRanking .new-platform-badge{width:112px;height:112px}
+}
+
+
+.category-overview .category-more-button{
+ cursor:pointer;
+ font-family:inherit;
+ appearance:none;
+ -webkit-appearance:none;
+ outline-offset:5px;
+}
+.category-overview .category-more-button:hover{
+ transform:scale(1.04);
+ filter:brightness(1.06);
+}
+.category-overview .category-more-button:focus-visible{
+ outline:3px solid #fff;
+}
+
 </style>
 </head>
 <body>
@@ -274,7 +323,7 @@ main{padding:0 11px}
 <button data-tab="semvendas" onclick="showTab('semvendas')">🆕 Produtos sem vendas na Shopee</button>
 <button data-tab="tendencias" onclick="showTab('tendencias')">🔥 Melhor pra postar nesta semana</button>
 <button data-tab="salvos" onclick="showTab('salvos')">⭐ Meus links</button>
-<button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
+<button data-tab="video" onclick="showTab('video')">🎬 COMO CRIAR VÍDEOS UGC E POV</button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
@@ -292,7 +341,7 @@ main{padding:0 11px}
 <h3>🔥 Destaque de vendas</h3>
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
 </div>
-<div class="section-label">Categorias com produtos cadastrados</div>
+<div class="section-label">Produtos sem vendas na Shopee</div>
 <div id="categoryRanking" class="category-grid category-overview category-ranking"></div>
 </div>
 <div class="panel">
@@ -1799,7 +1848,7 @@ function renderDemandRadar(){
  if(overview){
   if(ranked.length){
    const cards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver para ver</span></button>`);
-   if(cards.length>3)cards.splice(3,0,'<div class="category-more" aria-label="Mais vendido">MAIS<br>VENDIDO</div>');
+   if(cards.length>3)cards.splice(3,0,'<button type="button" class="category-more category-more-button" aria-label="Abrir produtos mais vendidos" onclick="showTab(\'mais\')">MAIS<br>VENDIDO</button>');
    overview.innerHTML=cards.join('');
   }else{
    overview.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
@@ -1807,12 +1856,14 @@ function renderDemandRadar(){
  }
  const ranking=$('categoryRanking');
  if(ranking){
-  if(ranked.length){
-   const categoryCards=ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`);
-   if(categoryCards.length>3)categoryCards.splice(3,0,'<div class="category-more" aria-label="Destaque de vendas">DESTAQUE<br>DE VENDAS</div>');
-   ranking.innerHTML=categoryCards.join('');
+  const noSales=source.filter(p=>p.vendas!==null&&p.vendas!==undefined&&p.vendas!==''&&numericValue(p.vendas)===0);
+  ranking.classList.add('new-platform-list');
+  const items=noSales.map(p=>productCard(p));
+  if(items.length){
+   items.splice(Math.min(3,items.length),0,'<div class="new-platform-badge" aria-label="Novo na plataforma">NOVO NA<br>PLATAFORMA</div>');
+   ranking.innerHTML=items.join('');
   }else{
-   ranking.innerHTML='<div class="empty">Nenhuma categoria cadastrada.</div>';
+   ranking.innerHTML='<div class="empty">Nenhum produto sem vendas informado no momento.</div>';
   }
  }
  const highlight=$('categoryHighlight');
@@ -1966,4 +2017,4 @@ initializeRadar();
 
 </script>
 </body>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 </html>
+ </html>
