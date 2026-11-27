@@ -1370,27 +1370,56 @@ function renderPrompts(){
 
 
 async function resolveTutorialVideo(p){
- const raw=String(p.video_url||p.storage_path||p.url_video||p.arquivo||'').trim();
- if(!raw)return '';
- const bucket='radar-ugc-videos';
- let path=String(p.storage_path||'').trim();
- if(!path && /^https?:\/\//i.test(raw)){
-  const marker='/storage/v1/object/public/'+bucket+'/';
-  const signedMarker='/storage/v1/object/sign/'+bucket+'/';
-  if(raw.includes(marker))path=decodeURIComponent(raw.split(marker)[1].split('?')[0]);
-  else if(raw.includes(signedMarker))path=decodeURIComponent(raw.split(signedMarker)[1].split('?')[0]);
+ // Compatibilidade com os nomes de campos usados em versões anteriores do cadastro.
+ const fields=['video_url','url_video','arquivo_url','video_path','caminho_video',
+               'storage_path','file_path','arquivo','video','url','link_video'];
+ let raw='';
+ for(const field of fields){
+  const value=p?.[field];
+  if(typeof value==='string'&&value.trim()){
+   raw=value.trim();
+   break;
+  }
  }
- if(path){
-  path=path.replace(/^\/+/, '').replace(new RegExp('^'+bucket+'/'),'');
+ if(!raw)return '';
+
+ const buckets=['radar-ugc-videos','videos-radar','videos-ugc','ugc-videos','radar-videos'];
+ const storageBase=(typeof SUPABASE_URL!=='undefined'?SUPABASE_URL:'').replace(/\/+$/,'');
+ let bucketFromUrl='';
+ let pathFromUrl='';
+
+ // Identifica bucket e caminho em URLs públicas ou assinadas do Supabase Storage.
+ const storageMatch=raw.match(/\/storage\/v1\/object\/(?:public|sign|authenticated)\/([^/?#]+)\/([^?#]+)/i);
+ if(storageMatch){
+  bucketFromUrl=decodeURIComponent(storageMatch[1]);
+  pathFromUrl=decodeURIComponent(storageMatch[2]);
+ }
+ if(/^https?:\/\//i.test(raw) && !storageMatch){
+  // URL externa ou CDN: utilizar diretamente.
+  return raw;
+ }
+
+ let path=pathFromUrl || raw;
+ let bucketCandidates=bucketFromUrl?[bucketFromUrl,...buckets.filter(b=>b!==bucketFromUrl)]:buckets;
+ path=path.replace(/^\/+/, '');
+ if(bucketFromUrl){
+  path=path.replace(new RegExp('^'+bucketFromUrl.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'/'),'');
+ }
+ for(const bucket of bucketCandidates){
   try{
    const {data,error}=await db.storage.from(bucket).createSignedUrl(path,3600);
    if(!error&&data?.signedUrl)return data.signedUrl;
-  }catch(e){console.warn('Link assinado UGC:',e);}
+  }catch(error){
+   console.warn('Não foi possível assinar vídeo no bucket '+bucket,error?.message||error);
+  }
   try{
    const {data}=db.storage.from(bucket).getPublicUrl(path);
    if(data?.publicUrl)return data.publicUrl;
-  }catch(e){console.warn('Link público UGC:',e);}
+  }catch(error){
+   console.warn('Não foi possível obter URL pública do bucket '+bucket,error?.message||error);
+  }
  }
+ // Se a coluna contém URL absoluta, não a descarta caso o Storage não consiga assinar.
  return /^https?:\/\//i.test(raw)?raw:'';
 }
 
@@ -1405,7 +1434,7 @@ async function renderTutorials(){
   target.innerHTML='<div class="empty">Carregando vídeos UGC...</div>';
   const cards=await Promise.all(rows.map(async p=>{
    const videoUrl=await resolveTutorialVideo(p);
-   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<div class="tutorial-video-wrap"><video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" aria-label="${esc(p.titulo||'Vídeo tutorial')}"><source src="${esc(videoUrl)}">Seu navegador não conseguiu reproduzir este vídeo. Tente abrir em outro navegador.</video></div>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
+   return `<div class="content-card"><h3>${esc(p.titulo||p.nome||'Vídeo')}</h3><p>${esc(p.descricao||'')}</p>${videoUrl?`<div class="tutorial-video-wrap"><video controls playsinline webkit-playsinline preload="metadata" controlsList="nodownload" style="display:block;width:100%;max-width:100%;height:auto;max-height:460px;object-fit:contain;background:#000;border-radius:14px" aria-label="${esc(p.titulo||'Vídeo tutorial')}"><source src="${esc(videoUrl)}">Seu navegador não conseguiu reproduzir este vídeo. Tente abrir em outro navegador.</video></div>`:'<p class="muted">Não foi possível localizar o arquivo de vídeo.</p>'}</div>`;
   }));
   target.innerHTML=cards.join('');
   target.querySelectorAll('video').forEach(video=>{
@@ -2017,4 +2046,4 @@ initializeRadar();
 
 </script>
 </body>
- </html>
+                   </html>
