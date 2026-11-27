@@ -212,7 +212,7 @@ main{padding:0 11px}
 <button data-tab="video" onclick="showTab('video')">🎥 Minhas dicas</button>
 <button data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
-<button data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
+<button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
 <div class="panel">
@@ -227,7 +227,7 @@ main{padding:0 11px}
 <div id="categoryHighlight" class="muted">Carregando informações dos produtos...</div>
 </div>
 <div class="section-label">Categorias com produtos cadastrados</div>
-<div id="categoryRanking"></div>
+<div id="categoryRanking" class="category-grid"></div>
 </div>
 <div class="panel">
 <div class="demand-heading">
@@ -524,18 +524,28 @@ function showTab(name){
   return;
  }
  if(name==='admin'&&!isAdmin)return;
- if(name==='autopost'&&!isAdmin&&!hasAutopostPro){alert('O GE AUTOPOST AFILIADO é exclusivo para assinantes PRO ativos.');return;}
+ if(name==='autopost'&&!isAdmin&&!hasAutopostPro){
+  alert('O GE AUTOPOST AFILIADO é exclusivo para assinantes PRO ativos.');
+  return;
+ }
+ const section=document.getElementById(name);
+ if(!section){
+  console.error('Aba não encontrada:',name);
+  return;
+ }
  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
  document.querySelectorAll('.tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
- const section=$(name);
- if(section)section.classList.add('active');
+ section.classList.add('active');
  if(name==='salvos')renderSaved();
  if(name==='mais')renderBest();
  if(name==='semvendas')loadZeroSalesProducts();
  if(name==='tendencias')renderTrends();
  if(name==='admin'&&isAdmin)loadAdminData();
  if(name==='salles'&&(isAdmin||hasPaidMembership))renderSalles();
- if(name==='autopost'&&(isAdmin||hasAutopostPro))loadAutopost();
+ if(name==='autopost'&&(isAdmin||hasAutopostPro)){
+  loadAutopost().catch(error=>console.error('Erro ao abrir GE AUTOPOST:',error));
+  setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
+ }
 }
 
 function switchAccount(){
@@ -1682,7 +1692,7 @@ function renderDemandRadar(){
  const overview=$('categoryOverview');
  if(overview)overview.innerHTML=ranked.length?ranked.slice(0,8).map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) • Ver lista</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
  const ranking=$('categoryRanking');
- if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" style="width:100%;margin:4px 0" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
+ if(ranking)ranking.innerHTML=ranked.length?ranked.map(([name,count])=>`<button type="button" class="category-card" data-category="${esc(name)}" onclick="filterByCategory(this.dataset.category)"><strong>${esc(name)}</strong><span>${count} produto(s) cadastrados — tocar para ver</span></button>`).join(''):'<div class="empty">Nenhuma categoria cadastrada.</div>';
  const highlight=$('categoryHighlight');
  if(highlight){
   if(bySales.length&&numericValue(bySales[0].vendas)>0){const p=bySales[0];highlight.innerHTML=`<b class="highlight">${esc(p.nome)}</b><p>${numericValue(p.vendas).toLocaleString('pt-BR')} vendas informadas • ${esc(p.categoria||'Outros')}</p><button class="soft" type="button" onclick="showTab('mais')">Ver produtos mais vendidos</button>`;}
