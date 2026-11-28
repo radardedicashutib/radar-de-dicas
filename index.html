@@ -197,6 +197,9 @@ main{padding:0 11px}
  .category-overview .category-card span,.category-ranking .category-card span{font-size:9px}
  .radar-extra-items{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+#autopostWorkspace .ap-subtabs{margin:12px 0 18px;position:sticky;top:0;z-index:5;background:var(--panel,#fff);padding:8px;border-radius:14px}
+#autopostWorkspace .ap-subtabs button{flex:1;min-width:130px}
+#autopostWorkspace .ap-view.hidden{display:none!important}
 </style>
 </head>
 <body>
@@ -265,7 +268,6 @@ main{padding:0 11px}
 <button type="button" data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button type="button" data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
-<button type="button" data-tab="cliques" id="clicksTab" class="hidden" onclick="showTab('cliques')">📊 Cliques</button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
 <section id="radar" class="section active">
@@ -406,14 +408,21 @@ main{padding:0 11px}
  <div id="autopostAccess" class="notice">Verificando seu acesso PRO...</div>
 </div>
 <div id="autopostWorkspace" class="hidden">
+ <nav class="tabs ap-subtabs" aria-label="Etapas do GE AUTOPOST">
+  <button type="button" class="active" data-apview="apOffersView" onclick="showAutopostView('apOffersView')">📦 Ofertas</button>
+  <button type="button" data-apview="apCreateView" onclick="showAutopostView('apCreateView')">✍️ Criar anúncio</button>
+  <button type="button" data-apview="apPublishView" onclick="showAutopostView('apPublishView')">🚀 Publicar agora</button>
+  <button type="button" data-apview="apScheduleView" onclick="showAutopostView('apScheduleView')">🗓️ Agendar / Relatórios</button>
+ </nav>
  <div class="stats">
   <div class="stat"><strong id="apOfferCount">0</strong><small>Minhas ofertas</small></div>
   <div class="stat"><strong id="apChannelCount">0</strong><small>Meus canais</small></div>
   <div class="stat"><strong id="apQueueCount">0</strong><small>Publicações na fila</small></div>
   <div class="stat"><strong id="apPublishedCount">0</strong><small>Publicações registradas</small></div>
  </div>
+ <div id="apOffersView" class="ap-view">
  <div class="panel">
-  <h3>1. Preparar oferta</h3>
+  <h3>📦 Ofertas recebidas do RADAR</h3>
   <form id="apOfferForm" onsubmit="apSaveOffer(event)">
    <div class="formgrid">
     <label>Nome do produto<input id="apTitle" required maxlength="180" placeholder="Nome da oferta"></label>
@@ -428,15 +437,19 @@ main{padding:0 11px}
   </form>
   <div id="apOfferMessage" class="statusline"></div>
  </div>
+ </div>
+ <div id="apCreateView" class="ap-view hidden">
  <div class="panel">
-  <h3>2. Gerar texto promocional</h3>
+  <h3>✍️ Gerar anúncio</h3>
   <p class="muted">Selecione uma oferta salva para montar uma mensagem que você pode revisar e copiar.</p>
   <select id="apCopyOffer" onchange="apGenerateCopy()"><option value="">Selecione uma oferta</option></select>
   <textarea id="apGeneratedText" rows="6" placeholder="O texto promocional aparecerá aqui"></textarea>
-  <div class="row"><button class="soft" type="button" onclick="apGenerateCopy()">Gerar texto</button><button class="primary" type="button" onclick="apCopyText()">Copiar anúncio</button></div>
+  <div class="row"><button class="primary" type="button" onclick="apGenerateCopy()">🔥 GERAR ANÚNCIO</button><button class="soft" type="button" onclick="apCopyText()">Copiar anúncio</button></div>
  </div>
+ </div>
+ <div id="apPublishView" class="ap-view hidden">
  <div class="panel">
-  <h3>3. Meus canais</h3>
+  <h3>🚀 Canais de publicação</h3>
   <p class="muted">Cadastre uma referência para organizar seus canais. A conexão OAuth e a publicação por API serão ativadas por integração oficial, não por senha colada aqui.</p>
   <form id="apChannelForm" onsubmit="apSaveChannel(event)"><div class="formgrid">
    <label>Plataforma<select id="apProvider"><option value="telegram">Telegram</option><option value="facebook">Facebook Página</option><option value="whatsapp">WhatsApp Business</option><option value="other">Outro / compartilhamento manual</option></select></label>
@@ -453,7 +466,7 @@ main{padding:0 11px}
   <div id="apChannelList" class="content-grid"></div>
  </div>
  <div class="panel">
-  <h3>4. Organizar publicação</h3>
+  <h3>🚀 Preparar publicação</h3>
   <p class="muted">Nesta etapa inicial, o sistema registra a publicação como rascunho/fila para execução assistida. Não afirma que publicou automaticamente em uma rede.</p>
   <form id="apPublicationForm" onsubmit="apQueuePublication(event)"><div class="formgrid">
    <label>Oferta<select id="apPublicationOffer" required><option value="">Selecione uma oferta</option></select></label>
@@ -461,9 +474,23 @@ main{padding:0 11px}
    <label>Agendar para (opcional)<input id="apScheduleAt" type="datetime-local"></label>
    <label>Status<select id="apPublicationStatus"><option value="draft">Rascunho</option><option value="queued">Na fila</option></select></label>
   </div><div class="row"><button class="primary" type="submit">Salvar publicação</button></div></form>
+  <div class="row"><button class="primary" type="button" onclick="apPublishNow()">🚀 PUBLICAR AUTOMATICAMENTE AGORA</button></div>
+ </div>
+ </div>
+ <div id="apScheduleView" class="ap-view hidden">
+ <div class="panel">
+  <h3>🗓️ Agendamentos e histórico</h3>
   <div id="apPublicationList"></div>
  </div>
- <div class="panel"><h3>5. Histórico e relatórios</h3><p class="muted">O histórico mostra registros desta central. Cliques, vendas e comissões só serão exibidos quando houver rastreamento e retorno confiável da plataforma afiliada.</p><div id="apReport" class="content-grid"></div></div>
+ <div class="panel"><h3>📊 Histórico e relatórios</h3><p class="muted">O histórico mostra registros desta central. Cliques, vendas e comissões só serão exibidos quando houver rastreamento e retorno confiável da plataforma afiliada.</p><div id="apReport" class="content-grid"></div></div>
+ <div class="panel">
+  <div class="demand-heading"><h3>📊 Cliques nos meus links</h3><span class="pill hot">RASTREAMENTO</span></div>
+  <p class="muted">Os cliques aparecem depois que alguém acessa um link rastreável gerado pelo AUTOPOST.</p>
+  <div class="stats"><div class="stat"><strong id="clickTotal">0</strong><small>Total de cliques</small></div><div class="stat"><strong id="clickOffers">0</strong><small>Ofertas com cliques</small></div></div>
+  <div class="row"><button class="primary" type="button" onclick="loadClickStats()">🔄 Atualizar cliques</button></div>
+  <div id="clickStatsMessage" class="statusline"></div><div id="clickOfferList" class="content-grid"><div class="empty">Ainda não há consulta realizada.</div></div>
+ </div>
+ </div>
 </div>
 </section>
 <section id="planos" class="section">
@@ -480,16 +507,7 @@ main{padding:0 11px}
 <div class="plan featured"><span class="pill hot">MÓDULO EXTRA</span><h3>GE AUTOPOST AFILIADO PRO</h3><div class="price">R$ 1.000 / ano</div><p>Central de ofertas, canais próprios, geração de anúncios, fila de publicações e relatórios. Requer ativação PRO.</p><button class="primary" onclick="requestPlan('pro_autopost_anual')">Solicitar GE AUTOPOST PRO</button></div>
 </div>
 </section>
-<section id="cliques" class="section">
- <div class="panel">
-  <div class="demand-heading"><h2>📊 Cliques nos meus links</h2><span class="pill hot">GE AUTOPOST PRO</span></div>
-  <p class="muted">Veja quantas pessoas acessaram os links rastreáveis gerados pelo GE AUTOPOST.</p>
-  <div class="stats"><div class="stat"><strong id="clickTotal">0</strong><small>Total de cliques</small></div><div class="stat"><strong id="clickOffers">0</strong><small>Ofertas com cliques</small></div></div>
-  <div class="row"><button class="primary" type="button" onclick="loadClickStats()">🔄 Atualizar relatório</button></div>
-  <div id="clickStatsMessage" class="statusline"></div>
-  <div id="clickOfferList" class="content-grid"><div class="empty">Clique em “Atualizar relatório” para consultar os dados.</div></div>
- </div>
-</section>
+
 <section id="admin" class="section">
 <div class="panel">
 <h2>Cadastro de produto — administrador</h2>
@@ -606,10 +624,6 @@ function showTab(name){
   alert('O GE AUTOPOST AFILIADO é exclusivo para assinantes PRO ativos.');
   return;
  }
- if(name==='cliques'&&!isAdmin&&!hasAutopostPro){
-  alert('O relatório de cliques é exclusivo para assinantes PRO ativos.');
-  return;
- }
  const section=document.getElementById(name);
  if(!section){
   console.error('Aba não encontrada:',name);
@@ -629,10 +643,6 @@ function showTab(name){
  }
  if(name==='autopost'&&(isAdmin||hasAutopostPro)){
   loadAutopost().catch(error=>console.error('Erro ao abrir GE AUTOPOST:',error));
-  setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
- }
- if(name==='cliques'&&(isAdmin||hasAutopostPro)){
-  loadClickStats().catch(error=>console.error('Erro ao carregar cliques:',error));
   setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
  }
 }
@@ -919,6 +929,7 @@ function apSafeUrl(value) {
 
 async function loadAutopost() {
   if (!currentUser) return;
+  if (document.getElementById('apOffersView')) showAutopostView('apOffersView');
   await checkAutopostAccess();
   if (!isAdmin && !hasAutopostPro) return;
   try {
@@ -963,6 +974,29 @@ async function loadAutopost() {
     console.error('GE AUTOPOST:', e);
     message('apOfferMessage', 'Erro ao carregar a central: ' + e.message, 'error');
   }
+}
+
+function showAutopostView(viewId) {
+  document.querySelectorAll('#autopostWorkspace .ap-view').forEach(view => view.classList.toggle('hidden', view.id !== viewId));
+  document.querySelectorAll('#autopostWorkspace .ap-subtabs button').forEach(button => button.classList.toggle('active', button.dataset.apview === viewId));
+  if (viewId === 'apScheduleView') loadClickStats().catch(error => console.error('Cliques:', error));
+}
+
+async function apPublishNow() {
+  const offerId = $('apCopyOffer').value;
+  const channelId = $('apPublicationChannel').value;
+  if (!offerId) { alert('Escolha uma oferta e gere o anúncio primeiro.'); showAutopostView('apCreateView'); return; }
+  if (!channelId) { alert('Selecione um canal conectado/cadastrado para continuar.'); return; }
+  $('apPublicationOffer').value = offerId;
+  $('apPublicationStatus').value = 'queued';
+  $('apScheduleAt').value = '';
+  const form = $('apPublicationForm');
+  if (form) {
+    const event = new Event('submit', { bubbles: true, cancelable: true });
+    form.dispatchEvent(event);
+  }
+  alert('Solicitação registrada na fila. A publicação efetiva depende da integração de envio ativa para o canal escolhido.');
+  showAutopostView('apScheduleView');
 }
 
 async function apSaveOffer(e) {
