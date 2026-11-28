@@ -265,6 +265,7 @@ main{padding:0 11px}
 <button type="button" data-tab="salles" id="sallesTab" onclick="showTab('salles')">🧠 Salles IA <span class="pill hot">PRO</span></button>
 <button type="button" data-tab="planos" onclick="showTab('planos')">💳 Assinaturas</button>
 <button type="button" data-tab="autopost" id="autopostTab" onclick="showTab('autopost')">🚀 GE AUTOPOST AFILIADO <span class="pill hot">PRO</span></button>
+<button type="button" data-tab="cliques" id="clicksTab" class="hidden" onclick="showTab('cliques')">📊 Cliques</button>
 <button data-tab="admin" id="adminTab" class="hidden" onclick="showTab('admin')">⚙️ Administração</button>
 </nav>
 <section id="radar" class="section active">
@@ -479,6 +480,16 @@ main{padding:0 11px}
 <div class="plan featured"><span class="pill hot">MÓDULO EXTRA</span><h3>GE AUTOPOST AFILIADO PRO</h3><div class="price">R$ 1.000 / ano</div><p>Central de ofertas, canais próprios, geração de anúncios, fila de publicações e relatórios. Requer ativação PRO.</p><button class="primary" onclick="requestPlan('pro_autopost_anual')">Solicitar GE AUTOPOST PRO</button></div>
 </div>
 </section>
+<section id="cliques" class="section">
+ <div class="panel">
+  <div class="demand-heading"><h2>📊 Cliques nos meus links</h2><span class="pill hot">GE AUTOPOST PRO</span></div>
+  <p class="muted">Veja quantas pessoas acessaram os links rastreáveis gerados pelo GE AUTOPOST.</p>
+  <div class="stats"><div class="stat"><strong id="clickTotal">0</strong><small>Total de cliques</small></div><div class="stat"><strong id="clickOffers">0</strong><small>Ofertas com cliques</small></div></div>
+  <div class="row"><button class="primary" type="button" onclick="loadClickStats()">🔄 Atualizar relatório</button></div>
+  <div id="clickStatsMessage" class="statusline"></div>
+  <div id="clickOfferList" class="content-grid"><div class="empty">Clique em “Atualizar relatório” para consultar os dados.</div></div>
+ </div>
+</section>
 <section id="admin" class="section">
 <div class="panel">
 <h2>Cadastro de produto — administrador</h2>
@@ -546,6 +557,7 @@ let promptRows=[];
 let tutorialRows=[];
 let hasAutopostPro=false;
 let apOffers=[];
+let apTrackedLinks={};
 let apChannels=[];
 let apPublications=[];
 
@@ -594,6 +606,10 @@ function showTab(name){
   alert('O GE AUTOPOST AFILIADO é exclusivo para assinantes PRO ativos.');
   return;
  }
+ if(name==='cliques'&&!isAdmin&&!hasAutopostPro){
+  alert('O relatório de cliques é exclusivo para assinantes PRO ativos.');
+  return;
+ }
  const section=document.getElementById(name);
  if(!section){
   console.error('Aba não encontrada:',name);
@@ -613,6 +629,10 @@ function showTab(name){
  }
  if(name==='autopost'&&(isAdmin||hasAutopostPro)){
   loadAutopost().catch(error=>console.error('Erro ao abrir GE AUTOPOST:',error));
+  setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
+ }
+ if(name==='cliques'&&(isAdmin||hasAutopostPro)){
+  loadClickStats().catch(error=>console.error('Erro ao carregar cliques:',error));
   setTimeout(()=>section.scrollIntoView({behavior:'smooth',block:'start'}),50);
  }
 }
@@ -845,6 +865,8 @@ async function checkAutopostAccess() {
   }
   const tab = $('autopostTab');
   if (tab) tab.classList.toggle('hidden', !isAdmin && !hasAutopostPro);
+  const clicksTab = $('clicksTab');
+  if (clicksTab) clicksTab.classList.toggle('hidden', !isAdmin && !hasAutopostPro);
   const access = $('autopostAccess');
   if (access) access.textContent = isAdmin
     ? 'Acesso administrador: controle total da central.'
@@ -853,6 +875,39 @@ async function checkAutopostAccess() {
       : 'Módulo bloqueado. Solicite o GE AUTOPOST AFILIADO PRO por R$ 1.000 ao ano.';
   const work = $('autopostWorkspace');
   if (work) work.classList.toggle('hidden', !isAdmin && !hasAutopostPro);
+}
+
+async function loadClickStats() {
+  if (!currentUser || (!isAdmin && !hasAutopostPro)) {
+    message('clickStatsMessage', 'Acesso exclusivo para assinantes PRO ativos.', 'error');
+    return;
+  }
+  message('clickStatsMessage', 'Consultando os cliques dos seus links...');
+  try {
+    if (!apOffers.length) await loadAutopost();
+    const events = await apApi('clicks.list');
+    const rows = Array.isArray(events) ? events : [];
+    const groups = new Map();
+    rows.forEach(event => {
+      const key = String(event.offer_id || 'sem-oferta');
+      if (!groups.has(key)) groups.set(key, { count: 0, last: null });
+      const item = groups.get(key);
+      item.count += 1;
+      if (event.clicked_at && (!item.last || new Date(event.clicked_at) > new Date(item.last))) item.last = event.clicked_at;
+    });
+    $('clickTotal').textContent = rows.length.toLocaleString('pt-BR');
+    $('clickOffers').textContent = groups.size.toLocaleString('pt-BR');
+    const cards = [...groups.entries()].sort((a,b) => b[1].count-a[1].count).map(([offerId, info]) => {
+      const offer = apOffers.find(item => String(item.id) === offerId);
+      const lastClick = info.last ? new Date(info.last).toLocaleString('pt-BR') : 'Não informado';
+      return `<div class="content-card"><b>${esc(offer?.title || 'Oferta não encontrada')}</b><p><strong>${info.count.toLocaleString('pt-BR')}</strong> clique(s)</p><small>Último clique: ${esc(lastClick)}</small></div>`;
+    });
+    $('clickOfferList').innerHTML = cards.join('') || '<div class="empty">Ainda não há cliques registrados nos seus links rastreáveis.</div>';
+    message('clickStatsMessage', `Relatório atualizado. Foram encontrados ${rows.length.toLocaleString('pt-BR')} cliques registrados.`, 'ok');
+  } catch (error) {
+    console.error('Relatório de cliques:', error);
+    message('clickStatsMessage', 'Não foi possível consultar os cliques: ' + error.message, 'error');
+  }
 }
 
 function apSafeUrl(value) {
@@ -977,7 +1032,7 @@ async function apSendRadarProduct(productId) {
     await loadAutopost();
     $('apCopyOffer').value = String(offer.id);
     $('apPublicationOffer').value = String(offer.id);
-    apGenerateCopy();
+    await apGenerateCopy();
     message('apOfferMessage', alreadyExists
       ? 'Esta oferta já estava cadastrada e foi selecionada no GE AUTOPOST.'
       : 'Produto enviado do RADAR para o GE AUTOPOST com sucesso.', 'ok');
@@ -1070,7 +1125,7 @@ async function apSaveChannel(e) {
   } catch (e) { alert('Não foi possível salvar o canal: ' + e.message); }
 }
 
-function apGenerateCopy() {
+async function apGenerateCopy() {
   const x = apOffers.find(v => String(v.id) === String($('apCopyOffer').value));
   if (!x) { $('apGeneratedText').value = ''; return; }
   const affiliateUrl = apSafeUrl(x.affiliate_url);
@@ -1079,9 +1134,23 @@ function apGenerateCopy() {
     alert('Esta oferta não possui link de afiliado válido. Não é possível gerar o anúncio.');
     return;
   }
-  const price = x.price ? `\n💰 Por ${money(x.price)}` : '';
-  const old = x.old_price ? `\nAntes: ${money(x.old_price)}` : '';
-  $('apGeneratedText').value = `🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description || 'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${affiliateUrl}\n\n#oferta #promoção #achadinhos`;
+  $('apGeneratedText').value = 'Gerando link rastreável...';
+  try {
+    let trackedUrl = apTrackedLinks[String(x.id)];
+    if (!trackedUrl) {
+      const created = await apApi('clicks.create_link', { offer_id: x.id, destination_url: affiliateUrl });
+      trackedUrl = apSafeUrl(created?.tracking_url);
+      if (!trackedUrl) throw new Error('O servidor não retornou um link rastreável válido.');
+      apTrackedLinks[String(x.id)] = trackedUrl;
+    }
+    const price = x.price ? `\n💰 Por ${money(x.price)}` : '';
+    const old = x.old_price ? `\nAntes: ${money(x.old_price)}` : '';
+    $('apGeneratedText').value = `🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description || 'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${trackedUrl}\n\n#oferta #promoção #achadinhos`;
+    message('apOfferMessage', 'Anúncio gerado com link rastreável. Os cliques nesse link aparecerão na aba Cliques.', 'ok');
+  } catch (error) {
+    $('apGeneratedText').value = '';
+    message('apOfferMessage', 'Não foi possível gerar o link rastreável: ' + error.message, 'error');
+  }
 }
 
 function apCopyText() {
