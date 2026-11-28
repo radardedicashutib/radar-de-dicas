@@ -2078,6 +2078,114 @@ function renderTrialShowcase(){
 
 }
 
+/* BUSCA DE PRODUTO PELO LINK DA SHOPEE — CORRIGIDA */  
+async function fetchShopeeProduct(){  
+ if(!isAdmin){  
+  message('shopeeProductMessage','Somente o administrador pode utilizar esta função.','error');  
+  return;  
+ }  
+  
+ const url=$('shopeeProductUrl').value.trim();  
+  
+ if(!url){  
+  message('shopeeProductMessage','Cole o link do produto da Shopee primeiro.','error');  
+  $('shopeeProductUrl').focus();  
+  return;  
+ }  
+  
+ if(!/^https?:\/\/(www\.)?(shopee\.com\.br|shopee\.com|s\.shopee\.co|s\.shopee\.com\.br|shope\.ee)\//i.test(url)){  
+  message('shopeeProductMessage','Confira o endereço. Cole um link válido de produto da Shopee.','error');  
+  return;  
+ }  
+  
+ const button=$('fetchShopeeProductButton');  
+ button.disabled=true;  
+ button.textContent='⏳ CONSULTANDO SHOPEE...';  
+  
+ message('shopeeProductMessage','Consultando os dados deste produto na Shopee. Aguarde...');  
+  
+ try{  
+  const{data,error}=await db.functions.invoke('radar-shopee',{  
+   body:{  
+    url:url,  
+    page:1,  
+    limit:1  
+   }  
+  });  
+  
+  if(error){  
+   console.error('Erro na Edge Function:',error);  
+   throw new Error(error.message||'Falha ao consultar o produto.');  
+  }  
+  
+  if(data?.error){  
+   const details=Array.isArray(data.details)  
+    ?data.details.join(' | ')  
+    :'';  
+  
+   throw new Error(  
+    (typeof data.error==='string'?data.error:'A integração retornou um erro.')+  
+    (details?' Detalhes: '+details:'')  
+   );  
+  }  
+  
+  const resultList=data?.products||data?.data?.products||[];  
+  
+  if(!Array.isArray(resultList)||!resultList.length){  
+   throw new Error('A Shopee não retornou os dados deste produto. Confira o link ou preencha os campos manualmente.');  
+  }  
+  
+  const p=resultList[0];  
+  const normalized=normalizeShopeeProduct(p,0);  
+  
+  $('pname').value=normalized.nome||'';  
+  $('pcat').value='Outros';  
+  $('pdesc').value=normalized.loja  
+   ?'Produto da Shopee • Loja: '+normalized.loja  
+   :'Produto encontrado na Shopee';  
+  
+  $('pprice').value=numericValue(normalized.preco)??'';  
+  $('pcommission').value=numericValue(normalized.comissao)??'';
+  $('pcommissionRate').value=numericValue(normalized.taxaComissao)??'';  
+  $('psales').value=numericValue(normalized.vendas)??'';  
+  $('paffiliates').value='';  
+  $('ptrend').value='Sem informação';  
+  $('pimage').value=normalized.imagem_url||'';  
+  $('plink').value=normalized.link_produto||url;  
+  $('paffiliate').value=normalized.link_afiliado||'';
+  $('pshopId').value=normalized.shopId||'';
+  $('pitemId').value=normalized.itemId||'';
+  $('editId').value='';  
+  
+  message(  
+   'shopeeProductMessage',  
+   'Dados encontrados! Confira os campos preenchidos, escolha a categoria e complete a comissão caso não tenha sido retornada. Depois clique em Salvar produto.',  
+   'ok'  
+  );  
+  
+  $('productForm').scrollIntoView({  
+   behavior:'smooth',  
+   block:'start'  
+  });  
+  
+  $('pname').focus();  
+  
+ }catch(err){  
+  console.error('Erro ao importar produto:',err);  
+  
+  message(  
+   'shopeeProductMessage',  
+   'Não foi possível importar: '+(err?.message||String(err)),  
+   'error'  
+  );  
+  
+ }finally{  
+  button.disabled=false;  
+  button.textContent='🔎 BUSCAR DADOS DO PRODUTO';  
+ }  
+}  
+  
+
 /* LINKS SALVOS */
 function renderSaved(){
   const el=$('savedList');
