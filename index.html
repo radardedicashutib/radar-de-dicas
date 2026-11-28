@@ -933,23 +933,26 @@ async function apSaveOffer(e) {
 // Integração pontual: envia o produto da busca Shopee para as ofertas do GE AUTOPOST.
 async function apSendRadarProduct(productId) {
   const product = products.find(item => String(item.id) === String(productId));
-  if (!product) {
-    alert('Produto não encontrado. Faça a busca novamente e tente outra vez.');
+  if (!product || product.origem !== 'shopee') {
+    alert('Produto da Shopee não encontrado. Faça a busca novamente e tente outra vez.');
     return;
   }
   if (!currentUser || (!isAdmin && !hasAutopostPro)) {
     alert('É necessário ter acesso ao GE AUTOPOST PRO.');
     return;
   }
+
   const affiliateUrl = apSafeUrl(product.link_afiliado);
   if (!affiliateUrl) {
     alert('Este produto não possui link de afiliado válido. Ele não foi enviado.');
     return;
   }
+
   try {
     await loadAutopost();
-    const existing = apOffers.find(item => apSafeUrl(item.affiliate_url) === affiliateUrl);
-    let offer = existing;
+    let offer = apOffers.find(item => apSafeUrl(item.affiliate_url) === affiliateUrl);
+    const alreadyExists = Boolean(offer);
+
     if (!offer) {
       const payload = {
         title: String(product.nome || 'Oferta Shopee').trim(),
@@ -964,13 +967,20 @@ async function apSendRadarProduct(productId) {
       await loadAutopost();
       offer = apOffers.find(item => apSafeUrl(item.affiliate_url) === affiliateUrl);
     }
-    showTab('autopost');
-    if (offer) {
-      $('apCopyOffer').value = String(offer.id);
-      $('apPublicationOffer').value = String(offer.id);
-      apGenerateCopy();
+
+    if (!offer) {
+      throw new Error('A oferta foi enviada, mas não apareceu na lista. Atualize o GE AUTOPOST e confira.');
     }
-    message('apOfferMessage', existing ? 'Esta oferta já estava cadastrada e foi selecionada.' : 'Produto enviado do RADAR para o GE AUTOPOST.', 'ok');
+
+    // Abre a central e espera o carregamento terminar antes de selecionar a oferta.
+    showTab('autopost');
+    await loadAutopost();
+    $('apCopyOffer').value = String(offer.id);
+    $('apPublicationOffer').value = String(offer.id);
+    apGenerateCopy();
+    message('apOfferMessage', alreadyExists
+      ? 'Esta oferta já estava cadastrada e foi selecionada no GE AUTOPOST.'
+      : 'Produto enviado do RADAR para o GE AUTOPOST com sucesso.', 'ok');
   } catch (error) {
     console.error('RADAR → GE AUTOPOST:', error);
     alert('Não foi possível enviar o produto: ' + (error.message || 'erro desconhecido'));
@@ -1063,9 +1073,15 @@ async function apSaveChannel(e) {
 function apGenerateCopy() {
   const x = apOffers.find(v => String(v.id) === String($('apCopyOffer').value));
   if (!x) { $('apGeneratedText').value = ''; return; }
+  const affiliateUrl = apSafeUrl(x.affiliate_url);
+  if (!affiliateUrl) {
+    $('apGeneratedText').value = '';
+    alert('Esta oferta não possui link de afiliado válido. Não é possível gerar o anúncio.');
+    return;
+  }
   const price = x.price ? `\n💰 Por ${money(x.price)}` : '';
   const old = x.old_price ? `\nAntes: ${money(x.old_price)}` : '';
-  $('apGeneratedText').value = `🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description || 'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${x.affiliate_url || x.original_url || ''}\n\n#oferta #promoção #achadinhos`;
+  $('apGeneratedText').value = `🔥 OFERTA DO DIA!\n${x.title}${price}${old}\n\n${x.description || 'Confira essa oportunidade!'}\n\n🛒 Compre aqui: ${affiliateUrl}\n\n#oferta #promoção #achadinhos`;
 }
 
 function apCopyText() {
