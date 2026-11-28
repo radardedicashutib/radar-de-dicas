@@ -959,7 +959,8 @@ async function apConnectFacebook() {
   message('apFacebookMessage', 'Abrindo a autorização segura do Facebook...');
   try {
     await apWaitForFacebookSdk();
-    window.FB.login(async response => {
+    window.FB.login(response => {
+      void (async () => {
       try {
         if (!response || !response.authResponse || !response.authResponse.accessToken) {
           message('apFacebookMessage', 'Conexão cancelada ou não autorizada. Tente novamente.', 'error');
@@ -986,6 +987,7 @@ async function apConnectFacebook() {
       } finally {
         if (button) { button.disabled = false; button.textContent = '🔵 Conectar Facebook'; }
       }
+      })();
     }, { scope: 'pages_show_list,pages_read_engagement,pages_manage_posts', return_scopes: true, auth_type: 'rerequest' });
   } catch (err) {
     message('apFacebookMessage', err.message || 'Não foi possível iniciar o Facebook.', 'error');
