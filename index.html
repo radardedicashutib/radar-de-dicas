@@ -423,18 +423,9 @@ main{padding:0 11px}
  <div id="apOffersView" class="ap-view">
  <div class="panel">
   <h3>📦 Ofertas recebidas do RADAR</h3>
-  <form id="apOfferForm" onsubmit="apSaveOffer(event)">
-   <div class="formgrid">
-    <label>Nome do produto<input id="apTitle" required maxlength="180" placeholder="Nome da oferta"></label>
-    <label>Preço (R$)<input id="apPrice" type="number" min="0" step="0.01"></label>
-    <label>Preço anterior (R$)<input id="apOldPrice" type="number" min="0" step="0.01"></label>
-    <label>Link original<input id="apOriginalUrl" type="url" placeholder="https://..."></label>
-    <label class="wide">Seu link de afiliado<input id="apAffiliateUrl" type="url" placeholder="Cole seu link de afiliado autorizado"></label>
-    <label class="wide">Descrição<textarea id="apDescription" rows="3" placeholder="Destaques, benefícios e condições"></textarea></label>
-    <label class="wide">Imagem (URL)<input id="apImageUrl" type="url" placeholder="https://..."></label>
-   </div>
-   <div class="row"><button class="primary" type="submit">Salvar minha oferta</button><button class="soft" type="reset">Limpar</button></div>
-  </form>
+  <p class="muted">Aqui aparecem as ofertas que o RADAR já salvou. Não é necessário cadastrar novamente.</p>
+  <div class="row"><button class="soft" type="button" onclick="loadAutopost()">🔄 Atualizar ofertas</button><span class="pill" id="apRadarOfferCount">0 ofertas</span></div>
+  <div id="apRadarOfferList" class="content-grid"><div class="empty">Carregando ofertas salvas do RADAR...</div></div>
   <div id="apOfferMessage" class="statusline"></div>
  </div>
  </div>
@@ -442,7 +433,7 @@ main{padding:0 11px}
  <div class="panel">
   <h3>✍️ Gerar anúncio</h3>
   <p class="muted">Selecione uma oferta salva para montar uma mensagem que você pode revisar e copiar.</p>
-  <select id="apCopyOffer" onchange="apGenerateCopy()"><option value="">Selecione uma oferta</option></select>
+  <select id="apCopyOffer"><option value="">Selecione uma oferta</option></select>
   <textarea id="apGeneratedText" rows="6" placeholder="O texto promocional aparecerá aqui"></textarea>
   <div class="row"><button class="primary" type="button" onclick="apGenerateCopy()">🔥 GERAR ANÚNCIO</button><button class="soft" type="button" onclick="apCopyText()">Copiar anúncio</button></div>
  </div>
@@ -847,9 +838,12 @@ async function apApi(action, data = {}, id = null) {
   if (error) {
     let detail = result?.error || error.message;
     try {
-      if (error.context && typeof error.context.json === 'function') {
+      if (error.context && typeof error.context.clone === 'function') {
+        const body = await error.context.clone().json();
+        detail = [body.error || body.message, body.details].filter(Boolean).join(' — ') || detail;
+      } else if (error.context && typeof error.context.json === 'function') {
         const body = await error.context.json();
-        detail = body.error || body.message || detail;
+        detail = [body.error || body.message, body.details].filter(Boolean).join(' — ') || detail;
       }
     } catch (_) {}
     throw new Error(detail || 'Falha na comunicação com o servidor.');
@@ -895,8 +889,8 @@ async function loadClickStats() {
   message('clickStatsMessage', 'Consultando os cliques dos seus links...');
   try {
     if (!apOffers.length) await loadAutopost();
-    const events = await apApi('clicks.list');
-    const rows = Array.isArray(events) ? events : [];
+    const response = await apApi('clicks.list');
+    const rows = Array.isArray(response) ? response : Array.isArray(response?.events) ? response.events : [];
     const groups = new Map();
     rows.forEach(event => {
       const key = String(event.offer_id || 'sem-oferta');
@@ -927,6 +921,35 @@ function apSafeUrl(value) {
   } catch (_) { return ''; }
 }
 
+function apChooseOffer(offerId) {
+  const id = String(offerId);
+  const offer = apOffers.find(item => String(item.id) === id);
+  if (!offer) { alert('Esta oferta não está mais disponível. Atualize a lista.'); return; }
+  $('apCopyOffer').value = id;
+  $('apPublicationOffer').value = id;
+  $('apGeneratedText').value = '';
+  showAutopostView('apCreateView');
+  message('apOfferMessage', 'Oferta selecionada. Agora clique em GERAR ANÚNCIO.', 'ok');
+}
+
+function apRenderRadarOffers() {
+  const host = $('apRadarOfferList');
+  if (!host) return;
+  $('apRadarOfferCount').textContent = `${apOffers.length} ofertas`;
+  if (!apOffers.length) {
+    host.innerHTML = '<div class="empty">Nenhuma oferta recebida. Salve ou envie ofertas pelo RADAR e atualize esta lista.</div>';
+    return;
+  }
+  host.innerHTML = apOffers.map(item => {
+    const price = item.price ? `<p><b>Preço:</b> ${esc(money(item.price))}</p>` : '';
+    const commission = item.commission != null ? `<p><b>Comissão:</b> ${esc(String(item.commission))}</p>` : '';
+    const rate = item.commission_rate != null ? `<p><b>Comissão:</b> ${esc(String(item.commission_rate))}%</p>` : '';
+    const trend = item.trend ? `<span class="pill good">${esc(String(item.trend))}</span>` : '';
+    const image = apSafeUrl(item.image_url);
+    return `<div class="content-card">${image ? `<img src="${esc(image)}" alt="" loading="lazy" style="width:100%;max-height:150px;object-fit:contain;border-radius:12px">` : ''}<b>${esc(item.title || 'Oferta sem título')}</b>${price}${commission}${rate}${trend}<div class="row"><button class="primary" type="button" onclick="apChooseOffer('${esc(item.id)}')">Selecionar oferta</button></div></div>`;
+  }).join('');
+}
+
 async function loadAutopost() {
   if (!currentUser) return;
   if (document.getElementById('apOffersView')) showAutopostView('apOffersView');
@@ -937,6 +960,7 @@ async function loadAutopost() {
       apApi('offers.list'), apApi('channels.list'), apApi('publications.list')
     ]);
     apOffers = offers || [];
+    apRenderRadarOffers();
     apChannels = channels || [];
     apPublications = publications || [];
 
@@ -999,25 +1023,6 @@ async function apPublishNow() {
   showAutopostView('apScheduleView');
 }
 
-async function apSaveOffer(e) {
-  e.preventDefault();
-  if (!currentUser || (!isAdmin && !hasAutopostPro)) return;
-  const payload = {
-    title: $('apTitle').value.trim(),
-    description: $('apDescription').value.trim(),
-    price: numericValue($('apPrice').value) || null,
-    old_price: numericValue($('apOldPrice').value) || null,
-    original_url: apSafeUrl($('apOriginalUrl').value) || null,
-    affiliate_url: apSafeUrl($('apAffiliateUrl').value) || null,
-    image_url: apSafeUrl($('apImageUrl').value) || null
-  };
-  try {
-    await apApi('offers.create', payload);
-    $('apOfferForm').reset();
-    message('apOfferMessage', 'Oferta salva na sua área.', 'ok');
-    await loadAutopost();
-  } catch (e) { message('apOfferMessage', 'Erro ao salvar: ' + e.message, 'error'); }
-}
 
 // Integração pontual: envia o produto da busca Shopee para as ofertas do GE AUTOPOST.
 async function apSendRadarProduct(productId) {
